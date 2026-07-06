@@ -1,0 +1,29 @@
+# Python virtual environments
+final/
+.venv/
+venv/
+env/
+
+# Python caches and bytecode
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Jupyter / notebooks
+.ipynb_checkpoints/
+
+# IDE and OS files
+.vscode/
+.DS_Store
+*.swp
+
+# Environment files
+.env
+.env.*
+
+# Logs
+*.log

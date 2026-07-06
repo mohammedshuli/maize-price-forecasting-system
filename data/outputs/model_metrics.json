@@ -1,0 +1,16 @@
+{
+  "Mbeya": {
+    "order": "(0,1,0)(1,0,0,12)",
+    "transform": "log",
+    "mape_1month": 9.61,
+    "mape_3month": 18.87,
+    "aic_full_fit": -255.48579511481728
+  },
+  "Iringa": {
+    "order": "(1,1,0)(0,0,0,12)",
+    "transform": "log",
+    "mape_1month": 8.14,
+    "mape_3month": 17.27,
+    "aic_full_fit": -315.87312967839614
+  }
+}
