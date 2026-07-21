@@ -1,5 +1,33 @@
 # Python virtual environments
+# Virtual environment
 final/
+venv/
+.venv/
+
+# Environment variables
+.env
+.env.*
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+
+# Jupyter
+.ipynb_checkpoints/
+
+# Logs
+*.log
+
+# OS files
+.DS_Store
+
+# Large data files
+data/raw/
+
+# Model cache (optional)
+*.pkl
+*.joblibfinal/
 .venv/
 venv/
 env/
