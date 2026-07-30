@@ -1,12 +1,32 @@
-# src/decision_support.py
-"""
-Decision Support Module.
-Provides a simple staged decision engine for maize sales and storage advice.
-The forecasting pipeline remains unchanged; this module converts forecast data
-into market, economic, risk, and decision outputs.
-"""
+# ==========================================================
+# MAIZE PRICE FORECASTING AND DECISION SUPPORT SYSTEM
+#
+# Decision Support Engine
+#
+# This module transforms SARIMA forecasts into practical,
+# farmer-oriented recommendations.
+#
+# Pipeline
+#
+# Forecast
+#      ↓
+# Market Analysis
+#      ↓
+# Economic Analysis
+#      ↓
+# Risk Analysis
+#      ↓
+# Decision Generation
+#      ↓
+# Farmer Explanation
+#
+# NOTE:
+# This module DOES NOT perform forecasting.
+# Forecasts are generated elsewhere.
+# ==========================================================
 
 from datetime import datetime
+from statistics import mean
 from typing import Any, Dict, List
 
 from config import (
@@ -18,17 +38,110 @@ from config import (
 )
 
 
+# ==========================================================
+# PRICE CONVERSION
+# ==========================================================
+
 def to_farmer_units(price_per_100kg: float) -> Dict[str, float]:
     """
-    Converts a 100kg wholesale price to standard farmer units:
-    1kg price and 90kg gunia price.
+    Convert wholesale prices into units familiar
+    to Tanzanian farmers.
     """
-    price_per_kg = price_per_100kg / 100
+
+    per_kg = price_per_100kg / 100
+
     return {
-        "per_kg": round(price_per_kg),
-        "per_gunia_90kg": round(price_per_kg * 90),
+
+        "per_100kg": round(price_per_100kg),
+
+        "per_kg": round(per_kg),
+
+        "per_gunia_90kg": round(per_kg * 90),
+
     }
 
+
+# ==========================================================
+# MONTH FORMATTER
+# ==========================================================
+
+def format_month(date: datetime) -> str:
+    """
+    Convert datetime into
+    Swahili month name.
+    """
+
+    return f"{SWAHILI_MONTHS[date.month]} {date.year}"
+
+
+# ==========================================================
+# PERCENT CHANGE
+# ==========================================================
+
+def percentage_change(old: float, new: float) -> float:
+
+    if old <= 0:
+
+        return 0.0
+
+    return ((new - old) / old) * 100
+
+
+# ==========================================================
+# VOLATILITY
+# ==========================================================
+
+def calculate_volatility(values: List[float]) -> float:
+    """
+    Simple volatility estimate.
+
+    Higher value
+    =
+    Less predictable market.
+    """
+
+    if len(values) < 2:
+
+        return 0.0
+
+    return (
+        (max(values) - min(values))
+        / mean(values)
+    ) * 100
+
+
+# ==========================================================
+# MARKET SIGNAL
+# ==========================================================
+
+def classify_market_signal(change_pct: float) -> str:
+    """
+    Convert percentage change
+    into a human-readable
+    market signal.
+    """
+
+    if change_pct >= 8:
+
+        return "Strongly Increasing"
+
+    if change_pct >= 3:
+
+        return "Increasing"
+
+    if change_pct <= -8:
+
+        return "Strongly Decreasing"
+
+    if change_pct <= -3:
+
+        return "Decreasing"
+
+    return "Stable"
+
+# ==========================================================
+# FORECAST ANALYSIS
+# ==========================================================
 
 def analyze_forecast(
     current_date: datetime,
@@ -37,57 +150,175 @@ def analyze_forecast(
     forecast_prices_100kg: List[float],
 ) -> Dict[str, Any]:
     """
-    Analyses the forecast series and produces a structured market summary.
+    Analyse forecast prices and generate
+    a structured market summary.
 
-    Parameters:
-        current_date: Most recent observed date.
-        current_price_100kg: Current wholesale price per 100kg.
-        forecast_dates: Sequence of forecast dates.
-        forecast_prices_100kg: Forecast prices for each date.
+    This function performs NO decision making.
 
-    Returns:
-        A dictionary containing current price, average forecast, trend direction,
-        and the strongest and weakest expected months.
+    It only describes the expected market.
     """
-    if not forecast_prices_100kg:
-        raise ValueError("Forecast prices cannot be empty.")
+
+    if len(forecast_prices_100kg) == 0:
+
+        raise ValueError(
+            "Forecast prices cannot be empty."
+        )
 
     current_price = float(current_price_100kg)
-    forecast_prices = [float(price) for price in forecast_prices_100kg]
-    average_forecast = sum(forecast_prices) / len(forecast_prices)
 
-    if current_price <= 0:
-        percentage_change_pct = 0.0
+    prices = [
+        float(x)
+        for x in forecast_prices_100kg
+    ]
+
+    avg_price = mean(prices)
+
+    change_pct = percentage_change(
+        current_price,
+        avg_price,
+    )
+
+    trend = classify_market_signal(
+        change_pct
+    )
+
+    volatility = calculate_volatility(
+        prices
+    )
+
+    highest_index = prices.index(
+        max(prices)
+    )
+
+    lowest_index = prices.index(
+        min(prices)
+    )
+
+    highest_date = forecast_dates[
+        highest_index
+    ]
+
+    lowest_date = forecast_dates[
+        lowest_index
+    ]
+
+    highest_price = prices[
+        highest_index
+    ]
+
+    lowest_price = prices[
+        lowest_index
+    ]
+
+    if volatility < 3:
+
+        stability = "Stable"
+
+    elif volatility < 8:
+
+        stability = "Moderate"
+
     else:
-        percentage_change_pct = ((average_forecast - current_price) / current_price) * 100
 
-    if percentage_change_pct > 2.0:
-        trend_direction = "Increasing"
-    elif percentage_change_pct < -2.0:
-        trend_direction = "Decreasing"
+        stability = "Unstable"
+
+    if trend == "Strongly Increasing":
+
+        market_message = (
+            "Bei zinaonesha dalili nzuri za kuongezeka."
+        )
+
+    elif trend == "Increasing":
+
+        market_message = (
+            "Bei zinaonekana kupanda taratibu."
+        )
+
+    elif trend == "Strongly Decreasing":
+
+        market_message = (
+            "Bei zinaonesha mwelekeo mkubwa wa kushuka."
+        )
+
+    elif trend == "Decreasing":
+
+        market_message = (
+            "Bei zinaonekana kushuka kidogo."
+        )
+
     else:
-        trend_direction = "Stable"
 
-    strongest_month_index = max(range(len(forecast_prices)), key=forecast_prices.__getitem__)
-    weakest_month_index = min(range(len(forecast_prices)), key=forecast_prices.__getitem__)
-
-    strongest_month = forecast_dates[strongest_month_index] if forecast_dates else None
-    weakest_month = forecast_dates[weakest_month_index] if forecast_dates else None
+        market_message = (
+            "Bei zinatarajiwa kubaki karibu na kiwango cha sasa."
+        )
 
     return {
-        "current_price_100kg": current_price,
-        "average_forecast_price": round(average_forecast, 2),
-        "average_forecast_price_100kg": round(average_forecast, 2),
-        "percentage_change_pct": round(percentage_change_pct, 2),
-        "trend_direction": trend_direction,
-        "strongest_month": strongest_month,
-        "weakest_month": weakest_month,
-        "strongest_month_price_100kg": round(forecast_prices[strongest_month_index], 2),
-        "weakest_month_price_100kg": round(forecast_prices[weakest_month_index], 2),
-        "is_harvest_season": getattr(current_date, "month", None) in HARVEST_MONTHS,
-        "volatility_pct": round(abs(percentage_change_pct) / 100.0, 4),
-    }
 
+        "current_price_100kg":
+            round(current_price, 2),
+
+        "average_forecast_price":
+            round(avg_price, 2),
+
+        "average_forecast_price_100kg":
+            round(avg_price, 2),
+
+        "percentage_change_pct":
+            round(change_pct, 2),
+
+        "trend_direction":
+            trend,
+
+        "market_signal":
+            trend,
+
+        "market_message":
+            market_message,
+
+        "volatility_pct":
+            round(volatility, 2),
+
+        "market_stability":
+            stability,
+
+        "best_month":
+            format_month(highest_date),
+
+        "best_month_price":
+            round(highest_price, 2),
+
+        "worst_month":
+            format_month(lowest_date),
+
+        "worst_month_price":
+            round(lowest_price, 2),
+
+        "strongest_month":
+            highest_date,
+
+        "weakest_month":
+            lowest_date,
+
+        "strongest_month_price_100kg":
+            round(highest_price, 2),
+
+        "weakest_month_price_100kg":
+            round(lowest_price, 2),
+
+        "is_harvest_season":
+            current_date.month in HARVEST_MONTHS,
+
+        "forecast_prices":
+            prices,
+
+        "forecast_dates":
+            forecast_dates,
+
+    }
+    
+    # ==========================================================
+# ECONOMIC ANALYSIS
+# ==========================================================
 
 def evaluate_economics(
     current_price_100kg: float,
@@ -98,53 +329,173 @@ def evaluate_economics(
     storage_quality: str = "kawaida",
 ) -> Dict[str, Any]:
     """
-    Evaluates whether storing maize for a number of months is financially worthwhile.
+    Evaluate the financial impact of storing maize.
 
-    Parameters:
-        current_price_100kg: Current wholesale price per 100kg.
-        forecast_prices_100kg: Forecast prices for each period.
-        storage_duration_months: Number of months to store.
-        storage_cost: Explicit storage cost in local currency.
-        transport_cost: Explicit transport cost in local currency.
-        storage_quality: Storage system category used to estimate expected losses.
+    This function estimates whether waiting
+    is economically worthwhile after
+    considering storage losses and costs.
 
-    Returns:
-        A structured economic assessment including expected revenue, losses, and net benefit.
+    It performs NO recommendation.
     """
-    if not forecast_prices_100kg:
-        raise ValueError("Forecast prices cannot be empty.")
 
-    current_price = float(current_price_100kg)
-    storage_loss_pct = (
-        STORAGE_LOSS_KAWAIDA if storage_quality == "kawaida" else STORAGE_LOSS_HERMETIC
+    if len(forecast_prices_100kg) == 0:
+
+        raise ValueError(
+            "Forecast prices cannot be empty."
+        )
+
+    current_price = float(
+        current_price_100kg
     )
 
-    target_index = min(storage_duration_months - 1, len(forecast_prices_100kg) - 1)
-    future_price = float(forecast_prices_100kg[target_index])
-
-    revenue_if_sold_now = current_price
-    revenue_if_stored = future_price
-    storage_loss_value = revenue_if_stored * storage_loss_pct
-    total_storage_expense = storage_cost + transport_cost + storage_loss_value
-    expected_net_benefit_100kg = revenue_if_stored - revenue_if_sold_now - total_storage_expense
-    expected_net_benefit_pct = (
-        (expected_net_benefit_100kg / current_price) * 100 if current_price else 0.0
+    future_index = min(
+        storage_duration_months - 1,
+        len(forecast_prices_100kg) - 1
     )
+
+    future_price = float(
+        forecast_prices_100kg[future_index]
+    )
+
+    # --------------------------------------------------
+    # Storage losses
+    # --------------------------------------------------
+
+    if storage_quality.lower() == "kawaida":
+
+        storage_loss_pct = STORAGE_LOSS_KAWAIDA
+
+    else:
+
+        storage_loss_pct = STORAGE_LOSS_HERMETIC
+
+    storage_loss_value = (
+        future_price
+        * storage_loss_pct
+    )
+
+    # --------------------------------------------------
+    # Revenue estimates
+    # --------------------------------------------------
+
+    revenue_now = current_price
+
+    revenue_future = future_price
+
+    total_cost = (
+
+        storage_cost
+
+        + transport_cost
+
+        + storage_loss_value
+
+    )
+
+    expected_net = (
+
+        revenue_future
+
+        - revenue_now
+
+        - total_cost
+
+    )
+
+    expected_net_pct = percentage_change(
+
+        revenue_now,
+
+        revenue_future - total_cost,
+
+    )
+
+    # --------------------------------------------------
+    # Financial interpretation
+    # --------------------------------------------------
+
+    if expected_net > 0:
+
+        outcome = "Profit"
+
+    else:
+
+        outcome = "Loss"
+
+    if expected_net_pct >= 10:
+
+        attractiveness = "Very Good"
+
+    elif expected_net_pct >= 5:
+
+        attractiveness = "Good"
+
+    elif expected_net_pct >= 0:
+
+        attractiveness = "Marginal"
+
+    else:
+
+        attractiveness = "Poor"
+
+    roi = 0.0
+
+    if total_cost > 0:
+
+        roi = (
+
+            expected_net
+
+            / total_cost
+
+        ) * 100
 
     return {
-        "revenue_if_sold_now_100kg": round(revenue_if_sold_now, 2),
-        "revenue_if_stored_100kg": round(revenue_if_stored, 2),
-        "storage_loss_pct": storage_loss_pct,
-        "storage_loss_value": round(storage_loss_value, 2),
-        "storage_cost": round(storage_cost, 2),
-        "transport_cost": round(transport_cost, 2),
-        "total_storage_expense": round(total_storage_expense, 2),
-        "expected_net_benefit_100kg": round(expected_net_benefit_100kg, 2),
-        "expected_net_benefit_pct": round(expected_net_benefit_pct, 2),
-        "expected_profit_or_loss": "Profit" if expected_net_benefit_100kg > 0 else "Loss",
-        "storage_duration_months": storage_duration_months,
-    }
 
+        "revenue_if_sold_now_100kg":
+            round(revenue_now, 2),
+
+        "revenue_if_stored_100kg":
+            round(revenue_future, 2),
+
+        "storage_loss_pct":
+            storage_loss_pct,
+
+        "storage_loss_value":
+            round(storage_loss_value, 2),
+
+        "storage_cost":
+            round(storage_cost, 2),
+
+        "transport_cost":
+            round(transport_cost, 2),
+
+        "total_storage_expense":
+            round(total_cost, 2),
+
+        "expected_net_benefit_100kg":
+            round(expected_net, 2),
+
+        "expected_net_benefit_pct":
+            round(expected_net_pct, 2),
+
+        "expected_profit_or_loss":
+            outcome,
+
+        "economic_attractiveness":
+            attractiveness,
+
+        "return_on_storage_pct":
+            round(roi, 2),
+
+        "storage_duration_months":
+            storage_duration_months,
+
+    }
+    
+    # ==========================================================
+# RISK ASSESSMENT
+# ==========================================================
 
 def assess_risk(
     uncertainty_width_pct: float,
@@ -153,48 +504,155 @@ def assess_risk(
     profitability_pct: float,
 ) -> Dict[str, Any]:
     """
-    Evaluates the overall risk of waiting based on uncertainty, storage loss,
-    volatility, and profitability.
+    Assess the overall risk of waiting before selling maize.
 
-    Returns:
-        A dictionary with a numeric risk score, a categorical risk level, and explanation.
+    Risk is based on four components:
+
+    • Forecast uncertainty
+    • Storage losses
+    • Market volatility
+    • Expected profitability
+
+    This function performs NO recommendation.
     """
-    uncertainty_component = max(0.0, float(uncertainty_width_pct))
-    storage_component = max(0.0, float(storage_loss_pct))
-    volatility_component = max(0.0, float(volatility_pct))
-    profitability_component = max(0.0, -float(profitability_pct) / 100.0)
 
-    risk_score = min(
-        100.0,
-        (uncertainty_component + storage_component + volatility_component + profitability_component) * 100.0,
+    uncertainty = max(
+        0.0,
+        float(uncertainty_width_pct)
     )
 
-    if risk_score > 70.0:
-        risk_level = "High"
-    elif risk_score > 40.0:
-        risk_level = "Medium"
-    else:
+    storage = max(
+        0.0,
+        float(storage_loss_pct) * 100
+    )
+
+    volatility = max(
+        0.0,
+        float(volatility_pct)
+    )
+
+    profitability_penalty = max(
+        0.0,
+        -float(profitability_pct)
+    )
+
+    # --------------------------------------------------
+    # Weighted score
+    # --------------------------------------------------
+
+    risk_score = (
+
+        uncertainty * 0.35
+
+        + storage * 0.20
+
+        + volatility * 0.20
+
+        + profitability_penalty * 0.25
+
+    )
+
+    risk_score = min(
+        round(risk_score, 2),
+        100.0
+    )
+
+    # --------------------------------------------------
+    # Risk classification
+    # --------------------------------------------------
+
+    if risk_score < 25:
+
         risk_level = "Low"
 
-    if risk_level == "High":
-        explanation = (
-            "The combination of large uncertainty, storage loss, and weak profitability makes waiting risky."
-        )
-    elif risk_level == "Medium":
-        explanation = (
-            "There is a moderate chance that waiting could be worthwhile, but the outcome remains uncertain."
-        )
+    elif risk_score < 50:
+
+        risk_level = "Medium"
+
+    elif risk_score < 75:
+
+        risk_level = "High"
+
     else:
+
+        risk_level = "Very High"
+
+    # --------------------------------------------------
+    # Farmer explanation
+    # --------------------------------------------------
+
+    if risk_level == "Low":
+
         explanation = (
-            "The forecast and cost assumptions suggest that waiting is relatively safe."
+            "Hatari ya kusubiri ni ndogo. "
+            "Iwapo utahifadhi mahindi vizuri, "
+            "nafasi ya kupata matokeo mazuri ipo."
         )
+
+    elif risk_level == "Medium":
+
+        explanation = (
+            "Kuna hatari ya wastani. "
+            "Ni vizuri kuendelea kufuatilia "
+            "bei za soko kabla ya kufanya uamuzi."
+        )
+
+    elif risk_level == "High":
+
+        explanation = (
+            "Hatari ya kusubiri ni kubwa. "
+            "Mabadiliko ya soko au gharama "
+            "za kuhifadhi zinaweza kupunguza faida."
+        )
+
+    else:
+
+        explanation = (
+            "Hatari ni kubwa sana. "
+            "Kusubiri kunaweza kusababisha "
+            "hasara ikiwa hali ya soko itabadilika."
+        )
+
+    # --------------------------------------------------
+    # Confidence
+    # --------------------------------------------------
+
+    confidence = max(
+        40,
+        round(100 - risk_score)
+    )
 
     return {
-        "risk_score": round(risk_score, 2),
-        "risk_level": risk_level,
-        "explanation": explanation,
-    }
 
+        "risk_score":
+            risk_score,
+
+        "risk_level":
+            risk_level,
+
+        "confidence":
+            confidence,
+
+        "uncertainty_component":
+            round(uncertainty, 2),
+
+        "storage_component":
+            round(storage, 2),
+
+        "volatility_component":
+            round(volatility, 2),
+
+        "profitability_component":
+            round(profitability_penalty, 2),
+
+        "explanation":
+            explanation,
+
+    }
+    
+    # ==========================================================
+# DECISION ENGINE
+# ==========================================================
 
 def generate_decision(
     market_analysis: Dict[str, Any],
@@ -202,47 +660,93 @@ def generate_decision(
     risk_assessment: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
-    Combines the market, economic, and risk analyses into a single recommendation.
+    Determine the most appropriate action for the farmer.
 
-    Returns:
-        A structured decision object with an action and explicit reasons.
+    Possible actions
+
+    • SELL_NOW
+    • STORE
+    • STORE_PARTIALLY
+
+    This function performs decision logic only.
     """
-    reasons: List[str] = []
 
-    if market_analysis["trend_direction"] == "Decreasing":
-        reasons.append("The forecast trend is declining.")
-    elif market_analysis["trend_direction"] == "Increasing":
-        reasons.append("The forecast trend is improving.")
-    else:
-        reasons.append("The forecast trend is broadly stable.")
+    price_change = market_analysis["percentage_change_pct"]
 
-    if economic_analysis["expected_profit_or_loss"] == "Loss":
-        reasons.append("The expected storage outcome is a loss after storage and transport costs.")
-    else:
-        reasons.append("The expected storage outcome remains profitable after costs.")
+    expected_profit = economic_analysis["expected_net_benefit_100kg"]
 
-    if risk_assessment["risk_level"] == "High":
-        reasons.append("Risk is high because uncertainty and storage exposure are significant.")
-    elif risk_assessment["risk_level"] == "Medium":
-        reasons.append("Risk is moderate, so a partial approach is more robust.")
-    else:
-        reasons.append("Risk is low, so waiting is acceptable.")
+    risk = risk_assessment["risk_level"]
 
-    if risk_assessment["risk_level"] == "High" or economic_analysis["expected_net_benefit_pct"] <= 0:
+    reasons = []
+
+    # --------------------------------------------------
+    # SELL NOW
+    # --------------------------------------------------
+
+    if expected_profit <= 0:
+
         action = "SELL_NOW"
-    elif risk_assessment["risk_level"] == "Medium" or economic_analysis["expected_net_benefit_pct"] < 5.0:
-        action = "STORE_PARTIALLY"
-    else:
+
+        reasons.append(
+            "Kusubiri hakutegemewi kuongeza faida baada ya gharama za uhifadhi."
+        )
+
+    elif risk == "HIGH":
+
+        action = "SELL_NOW"
+
+        reasons.append(
+            "Hatari ya kusubiri ni kubwa kuliko faida inayotarajiwa."
+        )
+
+    # --------------------------------------------------
+    # STORE
+    # --------------------------------------------------
+
+    elif price_change >= 5 and risk == "LOW":
+
         action = "STORE"
 
-    return {
-        "action": action,
-        "reasons": reasons,
-        "market_trend": market_analysis["trend_direction"],
-        "economic_outcome": economic_analysis["expected_profit_or_loss"],
-        "risk_level": risk_assessment["risk_level"],
-    }
+        reasons.append(
+            "Bei zinatarajiwa kuongezeka kwa kiwango kinachoweza kuongeza mapato."
+        )
 
+    # --------------------------------------------------
+    # STORE PARTIALLY
+    # --------------------------------------------------
+
+    else:
+
+        action = "STORE_PARTIALLY"
+
+        reasons.append(
+            "Faida inaweza kupatikana lakini bado kuna hatari fulani ya soko."
+        )
+
+    return {
+
+        "action": action,
+
+        "reasons": reasons,
+
+        "risk_level": risk,
+
+        "expected_price_change_pct": round(price_change, 2),
+
+        "expected_net_benefit_100kg":
+            economic_analysis["expected_net_benefit_100kg"],
+
+        "expected_net_benefit_pct":
+            economic_analysis["expected_net_benefit_pct"],
+
+        "storage_cost":
+            economic_analysis["total_storage_expense"],
+
+    }
+    
+    # ==========================================================
+# DECISION EXPLANATION
+# ==========================================================
 
 def explain_decision(
     decision: Dict[str, Any],
@@ -251,132 +755,114 @@ def explain_decision(
     risk_assessment: Dict[str, Any],
 ) -> Dict[str, Any]:
     """
-    Translates the staged decision into a structured explanation object.
+    Convert the technical recommendation into structured
+    information that can be displayed by the dashboard.
 
-    Returns:
-        A dictionary suitable for later use by the dashboard or other presentation layers.
+    This function does NOT make decisions.
+    It only explains the result produced by
+    generate_decision().
     """
-    if decision["action"] == "SELL_NOW":
-        expected_outcome = (
-            "Selling now is expected to avoid further losses and reduce exposure to uncertainty."
+
+    action = decision["action"]
+
+    price_change = market_analysis["percentage_change_pct"]
+
+    risk = risk_assessment["risk_level"]
+
+    net_benefit = economic_analysis["expected_net_benefit_100kg"]
+
+    # --------------------------------------------------
+    # WHY THIS RECOMMENDATION?
+    # --------------------------------------------------
+
+    if action == "SELL_NOW":
+
+        why = (
+            "Bei zinazotarajiwa katika miezi ijayo zinafanana "
+            "au ziko chini ya bei ya sasa. Kusubiri kunaweza "
+            "kuongeza gharama za kuhifadhi bila kuongeza faida."
         )
-    elif decision["action"] == "STORE_PARTIALLY":
-        expected_outcome = (
-            "A partial storage strategy balances expected future gains against storage and uncertainty risks."
+
+        expected = (
+            "Kwa kuuza sasa utaepuka gharama za kuhifadhi na "
+            "kupunguza hatari ya kushuka kwa bei."
         )
+
+    elif action == "STORE":
+
+        why = (
+            "Mfumo unaonyesha kuwa bei zinaweza kuongezeka kwa "
+            "kiwango kinachoweza kufidia gharama za kuhifadhi."
+        )
+
+        expected = (
+            "Ukihifadhi vizuri mahindi yako unaweza kuuza kwa "
+            "bei nzuri zaidi katika miezi ijayo."
+        )
+
     else:
-        expected_outcome = (
-            "Storing the crop is expected to produce a positive net benefit after costs."
+
+        why = (
+            "Kuna nafasi ya bei kuongezeka, lakini bado kuna "
+            "kutokuwa na uhakika. Kuuza sehemu na kuhifadhi "
+            "sehemu nyingine hupunguza hatari."
         )
+
+        expected = (
+            "Utapata fedha za matumizi ya sasa huku ukibakiza "
+            "nafasi ya kunufaika endapo bei zitapanda."
+        )
+
+    # --------------------------------------------------
+    # RISK EXPLANATION
+    # --------------------------------------------------
+
+    if risk == "LOW":
+
+        risk_message = (
+            "Hatari ni ndogo kutokana na utulivu wa mwenendo wa soko."
+        )
+
+    elif risk == "MEDIUM":
+
+        risk_message = (
+            "Soko linaweza kubadilika, hivyo endelea kufuatilia "
+            "bei kabla ya kufanya maamuzi makubwa."
+        )
+
+    else:
+
+        risk_message = (
+            "Kuna uwezekano mkubwa wa mabadiliko ya bei. "
+            "Inashauriwa kufuatilia taarifa mpya za soko mara kwa mara."
+        )
+
+    # --------------------------------------------------
+    # SYSTEM FACTORS
+    # --------------------------------------------------
+
+    assumptions = [
+
+        "Bei ya sasa ya soko.",
+
+        "Utabiri wa bei kwa miezi mitatu ijayo.",
+
+        "Gharama za kuhifadhi.",
+
+        "Hatari zinazoweza kutokea wakati wa kusubiri.",
+
+        "Makadirio ya faida baada ya gharama.",
+
+    ]
 
     return {
-        "recommendation": decision["action"],
-        "reasons": decision["reasons"],
-        "expected_outcome": expected_outcome,
-        "assumptions_used": [
-            "Forecast prices are treated as the main signal for future market value.",
-            "Storage loss is estimated using the selected storage quality.",
-            "Transport and storage costs are included in the economic assessment.",
-        ],
-        "important_cautions": [
-            "Forecasts are uncertain and can change over time.",
-            "Actual market conditions may differ from the forecast.",
-            "The decision is based on the current assumptions and should be revisited regularly.",
-        ],
-        "market_summary": market_analysis,
-        "economic_summary": economic_analysis,
-        "risk_summary": risk_assessment,
-    }
 
+        "why": why,
 
-def get_recommendation(
-    current_date: datetime,
-    current_price_100kg: float,
-    forecast_dates: List[datetime],
-    forecast_prices_100kg: List[float],
-    ci_lower_1m_100kg: float,
-    ci_upper_1m_100kg: float,
-    storage_quality: str = "kawaida",
-) -> Dict[str, Any]:
-    """
-    Formulates a selling recommendation based on current price, forecasted price,
-    seasonal discount, and prediction intervals.
+        "expected_outcome": expected,
 
-    This function preserves the legacy output structure while using the new staged engine internally.
-    """
-    market_analysis = analyze_forecast(
-        current_date=current_date,
-        current_price_100kg=current_price_100kg,
-        forecast_dates=forecast_dates,
-        forecast_prices_100kg=forecast_prices_100kg,
-    )
-    economic_analysis = evaluate_economics(
-        current_price_100kg=current_price_100kg,
-        forecast_prices_100kg=forecast_prices_100kg,
-        storage_duration_months=3,
-        storage_cost=0.0,
-        transport_cost=0.0,
-        storage_quality=storage_quality,
-    )
+        "risk_explanation": risk_message,
 
-    ci_width_pct = (
-        (ci_upper_1m_100kg - ci_lower_1m_100kg) / current_price_100kg if current_price_100kg else 0.0
-    )
-    risk_assessment = assess_risk(
-        uncertainty_width_pct=ci_width_pct,
-        storage_loss_pct=economic_analysis["storage_loss_pct"],
-        volatility_pct=market_analysis["volatility_pct"],
-        profitability_pct=economic_analysis["expected_net_benefit_pct"],
-    )
-    decision = generate_decision(market_analysis, economic_analysis, risk_assessment)
+        "system_factors": assumptions,
 
-    if decision["action"] == "SELL_NOW":
-        action = "UZA SASA"
-        message_sw = (
-            "Bei ni hatarishi na uwezekano wa kupungua ni mkubwa. "
-            "Kulingana na data, ni busara kuuza sasa ukitaka kupunguza hatari."
-        )
-        risk_level = "high"
-    elif decision["action"] == "STORE_PARTIALLY":
-        action = "SUBIRI KIDOGO"
-        message_sw = (
-            "Kuna mtazamo wa kupanda kidogo, lakini usipoteze macho. "
-            "Kuhifadhi kwa hali nzuri na uangalie soko ni muhimu."
-        )
-        risk_level = "medium"
-    else:
-        action = "SUBIRI ZAIDI"
-        message_sw = (
-            "Mwelekeo wa bei unatisha na kuna nafasi nzuri ya faida. "
-            "Hifadhi vizuri na usikimbilie kuuza mapema."
-        )
-        risk_level = "low"
-
-    monthly_forecasts = []
-    for date, price in zip(forecast_dates, forecast_prices_100kg):
-        month_name = SWAHILI_MONTHS[date.month]
-        year = date.year
-        units = to_farmer_units(price)
-        monthly_forecasts.append(
-            {
-                "mwezi": f"{month_name} {year}",
-                "per_kg": units["per_kg"],
-                "per_gunia_90kg": units["per_gunia_90kg"],
-            }
-        )
-
-    gain_1m = (forecast_prices_100kg[0] - current_price_100kg) / current_price_100kg if current_price_100kg else 0.0
-    gain_3m = (
-        forecast_prices_100kg[2] - current_price_100kg
-    ) / current_price_100kg if len(forecast_prices_100kg) > 2 and current_price_100kg else 0.0
-
-    return {
-        "action": action,
-        "message_sw": message_sw,
-        "bei_ya_sasa": to_farmer_units(current_price_100kg),
-        "utabiri_wa_bei": monthly_forecasts,
-        "gain_1m_pct": round(gain_1m * 100, 1),
-        "gain_3m_pct": round(gain_3m * 100, 1),
-        "storage_loss_assumed_pct": round(economic_analysis["storage_loss_pct"] * 100, 1),
-        "risk_level": risk_level,
     }

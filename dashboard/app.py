@@ -1,8 +1,18 @@
-# dashboard/app.py
 """
-Maize Market Advisor - Streamlit dashboard.
-This module is a presentation layer only. It receives structured analysis from the
-backend decision engine and displays it to the farmer in a guided workflow.
+==========================================================
+MAIZE PRICE FORECASTING AND DECISION SUPPORT SYSTEM
+
+Streamlit Dashboard
+
+This dashboard is responsible ONLY for:
+
+• Loading prepared data
+• Collecting farmer inputs
+• Displaying market information
+• Displaying decision support results
+
+No business logic should exist here.
+==========================================================
 """
 
 import os
@@ -13,7 +23,17 @@ import altair as alt
 import pandas as pd
 import streamlit as st
 
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+# -------------------------------------------------------
+# Project path
+# -------------------------------------------------------
+
+sys.path.append(
+    os.path.dirname(
+        os.path.dirname(
+            os.path.abspath(__file__)
+        )
+    )
+)
 
 from src.decision_support import (
     analyze_forecast,
@@ -22,261 +42,1137 @@ from src.decision_support import (
     explain_decision,
     generate_decision,
 )
+
 from src.farmer_advisor import build_farmer_message
 
+
+# -------------------------------------------------------
+# Streamlit
+# -------------------------------------------------------
+
 st.set_page_config(
-    page_title="Mfumo wa Utabiri wa Bei za Mahindi",
-    page_icon="🌾",
+
+    page_title="Mfumo wa Ushauri wa Mauzo ya Mahindi",
+
+    page_icon="🌽",
+
     layout="wide",
+
     initial_sidebar_state="expanded",
+
 )
 
+# -------------------------------------------------------
+# CSS
+# -------------------------------------------------------
 
-def load_css(css_file_name: str) -> None:
-    """Load the dashboard stylesheet if it exists."""
-    css_path = os.path.join(os.path.dirname(__file__), css_file_name)
+def load_css(css_file: str):
+
+    css_path = os.path.join(
+        os.path.dirname(__file__),
+        css_file
+    )
+
     if os.path.exists(css_path):
-        with open(css_path, "r", encoding="utf-8") as handle:
-            st.markdown(f"<style>{handle.read()}</style>", unsafe_allow_html=True)
+
+        with open(
+            css_path,
+            encoding="utf-8"
+        ) as f:
+
+            st.markdown(
+                f"<style>{f.read()}</style>",
+                unsafe_allow_html=True
+            )
 
 
 load_css("styles.css")
 
 
-def format_currency(value: float, unit: str = "TSh") -> str:
-    """Format values as currency for display."""
-    try:
-        return f"{unit} {value:,.0f}"
-    except Exception:
-        return f"{unit} {value}"
+# -------------------------------------------------------
+# Formatting helpers
+# -------------------------------------------------------
+
+def format_currency(value: float):
+
+    return f"TSh {value:,.0f}"
 
 
-def format_date(value: Any) -> str:
-    """Format date values in a simple human-readable way."""
-    return pd.to_datetime(value).strftime("%d %b %Y")
+def format_date(value):
+
+    return pd.to_datetime(value).strftime("%d %B %Y")
 
 
-@st.cache_data
+# -------------------------------------------------------
+# Reusable Cards
+# -------------------------------------------------------
+
+def render_metric_card(title, value, note=""):
+
+    st.markdown(
+        f"""
+<div class="info-card">
+
+<div class="card-title">
+{title}
+</div>
+
+<div class="card-value">
+{value}
+</div>
+
+<div class="card-note">
+{note}
+</div>
+
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+
+
+def render_forecast_card(
+    month,
+    price,
+    current_price,
+):
+
+    change = (
+        (price-current_price)
+        / current_price
+    )*100
+
+    if change > 1:
+
+        colour = "#2E7D32"
+
+        icon = "📈"
+
+    elif change < -1:
+
+        colour = "#C62828"
+
+        icon = "📉"
+
+    else:
+
+        colour = "#F9A825"
+
+        icon = "➜"
+
+    st.markdown(
+        f"""
+<div class="forecast-card">
+
+<div class="forecast-month">
+{month}
+</div>
+
+<div class="forecast-price">
+{format_currency(price)}
+</div>
+
+<div
+class="forecast-change"
+style="color:{colour};">
+
+{icon} {change:.1f}%
+
+</div>
+
+</div>
+""",
+        unsafe_allow_html=True,
+    )
+    
+
+# ==========================================================
+# DATA LOADING
+# ==========================================================
+
+@st.cache_data(show_spinner=False)
 def load_region_data(region: str) -> Dict[str, Any] | None:
-    """Load the latest market data and forecast data for one region."""
+    """
+    Load processed market data together with the
+    generated SARIMA forecast.
+    """
+
     forecast_path = f"data/outputs/{region.lower()}_forecast.csv"
     clean_path = f"data/processed/{region.lower()}_clean.csv"
 
-    if not os.path.exists(forecast_path) or not os.path.exists(clean_path):
+    if not os.path.exists(forecast_path):
         return None
 
-    forecast = pd.read_csv(forecast_path, parse_dates=["date"])
-    clean = pd.read_csv(clean_path, parse_dates=["date"])
+    if not os.path.exists(clean_path):
+        return None
+
+    forecast = pd.read_csv(
+        forecast_path,
+        parse_dates=["date"]
+    )
+
+    clean = pd.read_csv(
+        clean_path,
+        parse_dates=["date"]
+    )
 
     latest = clean.iloc[-1]
+
     wholesale = float(latest["price"])
 
     return {
+
         "region": region,
+
         "date": latest["date"],
+
         "wholesale_100kg": wholesale,
-        "price_per_kg": round(wholesale / 100, 1),
-        "bag_90kg_value": round((wholesale / 100) * 90, 1),
+
+        "price_per_kg": wholesale / 100,
+
+        "bag_90kg_value": (wholesale / 100) * 90,
+
         "forecast": forecast,
+
     }
 
 
-def describe_trend(trend_direction: str) -> str:
-    """Create a short explanation of the observed trend."""
-    if trend_direction == "Increasing":
-        return "Bei zinatarajiwa kuongezeka kidogo kwa miezi michache ijayo."
-    if trend_direction == "Decreasing":
-        return "Bei zinatarajiwa kushuka kwa miezi michache ijayo."
-    return "Bei zinatarajiwa kubaki karibu na kiwango cha sasa."
+# ==========================================================
+# MARKET DESCRIPTION
+# ==========================================================
 
-st.markdown("###")
-st.write("chaguaa mkoa unapo taka kupata ushauri wa mauzo ya mahindi")
+def describe_trend(direction: str):
+
+    if direction == "Increasing":
+
+        return (
+            "Bei za mahindi zinaonekana kuongezeka "
+            "katika miezi ijayo."
+        )
+
+    elif direction == "Decreasing":
+
+        return (
+            "Bei zinaonekana kushuka katika miezi ijayo."
+        )
+
+    return (
+        "Bei zinatarajiwa kubaki karibu na kiwango "
+        "cha sasa."
+    )
+
+
+# ==========================================================
+# REGION SELECTION
+# ==========================================================
+
+st.write("### 🌍 Chagua Mkoa")
+
 mbeya = load_region_data("Mbeya")
 iringa = load_region_data("Iringa")
-region_options = [name for name, data in (("Mbeya", mbeya), ("Iringa", iringa)) if data is not None]
-selected_region = st.selectbox("Mkoa", region_options, index=0)
-region_data = mbeya if selected_region == "Mbeya" else iringa
+
+available_regions = []
+
+if mbeya is not None:
+    available_regions.append("Mbeya")
+
+if iringa is not None:
+    available_regions.append("Iringa")
+
+selected_region = st.selectbox(
+    "Mkoa unaotaka kuchambua",
+    available_regions,
+)
+
+if selected_region == "Mbeya":
+    region_data = mbeya
+else:
+    region_data = iringa
 
 if region_data is None:
-    st.error("Hakuna data ya soko inayopatikana kwa mkoa huu kwa sasa.")
+
+    st.error("Hakuna taarifa za soko.")
+
     st.stop()
 
+
+forecast_df = region_data["forecast"]
+
+
+market_analysis = analyze_forecast(
+
+    current_date=region_data["date"],
+
+    current_price_100kg=region_data["wholesale_100kg"],
+
+    forecast_dates=forecast_df["date"].tolist(),
+
+    forecast_prices_100kg=forecast_df["forecast"].tolist(),
+
+)
+
+
+# ==========================================================
+# SIDEBAR
+# ==========================================================
+
 with st.sidebar:
-    st.markdown(
-        "<div class='sidebar-card'><div class='sidebar-title'>🏛️ Taarifa za mradi</div><div class='sidebar-text'>Mfumo wa usaidizi wa maamuzi kwa wakulima wa mahindi.</div><div class='sidebar-meta'>Mkoa: Mbeya na Iringa<br/>Aina: Utabiri wa bei na ushauri wa mauzo</div></div>",
-        unsafe_allow_html=True,
+
+    st.markdown("## 🌽 Mfumo wa Ushauri")
+
+    st.info(
+        """
+Mfumo huu unatumia:
+
+• Bei halisi za soko
+
+• Uchambuzi wa kiuchumi
+
+• Tathmini ya uhifadhi
+
+ili kukusaidia kufanya
+uamuzi bora wa kuuza
+mahindi yako.
+"""
     )
-    st.markdown("<div class='sidebar-card'><div class='sidebar-title'>📌 Lengo kuu</div><div class='sidebar-text'>mfumo huu utakusaidia kujua mwenendo mzima wa soko la mahindi pamoja na bei zijazo ili kuweza kufanya maamuzi sahihi</div></div>", unsafe_allow_html=True)
+
+    st.success(
+        f"""
+Mkoa:
+
+**{selected_region}**
+
+Tarehe ya taarifa:
+
+**{format_date(region_data["date"])}**
+"""
+    )
+
+
+# ==========================================================
+# HERO SECTION
+# ==========================================================
 
 st.markdown(
-    "<div class='hero-section'><div class='hero-content'><div class='hero-chip'>🌾 Mfumo wa msaada wa maamuzi kwa wakulima</div><div class='hero-title'>Mfumo wa Utabiri wa Bei za Mahindi na Msaada wa Maamuzi</div><div class='hero-text'>Mfumo huu unakusaidia kufanya uamuzi bora wa kuuza au kuhifadhi mahindi yako kulingana na mwenendo wa soko.</div><div class='hero-actions'><div class='hero-note'>Mkoa: <b>"
-    + selected_region
-    + "</b> • Tarehe ya utabiri: "
-    + format_date(region_data["date"])
-    + "</div></div></div></div>",
-    unsafe_allow_html=True,
+f"""
+<div class="hero-section">
+
+<div class="hero-chip">
+
+🌾 Mfumo wa Utabiri wa Bei
+
+</div>
+
+<div class="hero-title">
+
+Fanya Uamuzi Bora wa
+Kuuza au Kuhifadhi Mahindi
+
+</div>
+
+<div class="hero-text">
+
+Mfumo huu unakusaidia
+kutathmini hali ya soko,
+utabiri wa bei pamoja na
+hatari zinazoweza kujitokeza
+kabla ya kufanya uamuzi.
+
+</div>
+
+<div class="hero-note">
+
+📍 Mkoa:
+<b>{selected_region}</b>
+
+&nbsp;&nbsp;&nbsp;
+
+📅 Tarehe:
+<b>{format_date(region_data["date"])}</b>
+
+</div>
+
+</div>
+""",
+unsafe_allow_html=True
 )
 
-st.markdown("### 🌽  Karibu katika mfumo huu")
-st.write("Kila sehemu ya mfumo huu inalenga kukusaidia namna ya kufanya maamuzi sahihi juu ya mavuno yako")
 
-st.markdown("### Hali ya sasa ya soko ilivyo mkoani")
-market_cols = st.columns(4)
-with market_cols[0]:
-    st.markdown("<div class='info-card'><div class='card-title'>💰 Bei ya sasa</div><div class='card-value'>" + format_currency(region_data["wholesale_100kg"]) + "</div><div class='card-note'>Kwa kilo 100</div></div>", unsafe_allow_html=True)
-with market_cols[1]:
-    st.markdown("<div class='info-card'><div class='card-title'>📊 Bei kwa kilo 1</div><div class='card-value'>" + format_currency(region_data["price_per_kg"], "TSh/kg") + "</div><div class='card-note'>Kulingana na bei ya soko</div></div>", unsafe_allow_html=True)
-with market_cols[2]:
-    st.markdown("<div class='info-card'><div class='card-title'>🧺 Thamani ya gunia la kilo 90</div><div class='card-value'>" + format_currency(region_data["bag_90kg_value"]) + "</div><div class='card-note'>Kikadirio cha thamani ya gunia</div></div>", unsafe_allow_html=True)
-with market_cols[3]:
-    st.markdown("<div class='info-card'><div class='card-title'>🏪 Hali ya soko</div><div class='card-value'>Inafaa</div><div class='card-note'>Taarifa ya sasa ya soko</div></div>", unsafe_allow_html=True)
+# ==========================================================
+# CURRENT MARKET
+# ==========================================================
 
-st.markdown("### 📈 3. Mwenendo wa bei kwa miezi ijayo")
-forecast_df = region_data["forecast"].copy()
-market_analysis = analyze_forecast(
-    current_date=region_data["date"],
-    current_price_100kg=region_data["wholesale_100kg"],
-    forecast_dates=forecast_df["date"].tolist(),
-    forecast_prices_100kg=forecast_df["forecast"].tolist(),
-)
+st.markdown("## 🌾 Hali ya Soko la Leo")
 
-forecast_plot = forecast_df[["date", "forecast"]].rename(columns={"forecast": "bei"})
-line_chart = (
-    alt.Chart(forecast_plot)
-    .mark_line(color="#2E7D32", strokeWidth=3)
-    .encode(
-        x=alt.X("date:T", title="Tarehe"),
-        y=alt.Y("bei:Q", title="Bei (TSh/100kg)"),
+c1, c2, c3, c4 = st.columns(4)
+
+trend = market_analysis["trend_direction"]
+
+if trend == "Increasing":
+
+    trend_text = "📈 Bei zinapanda"
+
+elif trend == "Decreasing":
+
+    trend_text = "📉 Bei zinashuka"
+
+else:
+
+    trend_text = "➜ Bei ni Nzuri"
+
+
+with c1:
+
+    render_metric_card(
+
+        "Bei ya sasa",
+
+        format_currency(
+            region_data["wholesale_100kg"]
+        ),
+
+        "Kwa kilo 100"
+
     )
-)
-latest_point = (
-    alt.Chart(forecast_plot.tail(1))
-    .mark_point(size=140, color="#F4A300", filled=True)
-    .encode(x="date:T", y="bei:Q")
-)
-latest_label = (
-    alt.Chart(forecast_plot.tail(1))
-    .mark_text(dx=0, dy=-12, fontSize=12, color="#263238")
-    .encode(x="date:T", y="bei:Q", text=alt.Text("bei:Q", format=".0f"))
-)
-chart = (
-    (line_chart + latest_point + latest_label)
-    .properties(height=320, background="white")
-    .configure_axis(gridColor="#376104", labelFontSize=12, titleFontSize=13)
-    .configure_view(strokeWidth=0)
-)
-st.altair_chart(chart, use_container_width=True)
-st.info(describe_trend(market_analysis["trend_direction"]))
 
-st.markdown("### 🧑‍🌾 Taarifa za mkulima, chagua mapendekezo yaliopo ili kuweza kupata ushauri sahihi")
-st.markdown("<div class='form-shell'>", unsafe_allow_html=True)
-with st.form("farmer_form"):
+with c2:
+
+    render_metric_card(
+
+        "Bei kwa kilo",
+
+        format_currency(
+            region_data["price_per_kg"]
+        ),
+
+        "Kwa bei za rejareja"
+
+    )
+
+with c3:
+
+    render_metric_card(
+
+        "Gunia (90Kg)",
+
+        format_currency(
+            region_data["bag_90kg_value"]
+        ),
+
+        "Makadirio"
+
+    )
+
+with c4:
+
+    render_metric_card(
+
+        "Mwenendo",
+
+        trend_text,
+
+        "Kutokana na utabiri"
+
+    )
+    
+    # ==========================================================
+# PRICE FORECAST
+# ==========================================================
+
+st.markdown("## 📈 Bei Zinazotarajiwa")
+
+st.write(
+    """
+Hapa chini unaweza kuona makadirio ya
+bei pamoja na mabadiliko yanayotarajiwa kwa miezi ijayo.
+"""
+)
+
+forecast_cards = st.columns(3)
+
+future_prices = forecast_df.head(3)
+
+current_price = region_data["wholesale_100kg"]
+
+for column, (_, row) in zip(forecast_cards, future_prices.iterrows()):
+
+    with column:
+
+        render_forecast_card(
+
+            month=pd.to_datetime(row["date"]).strftime("%B %Y"),
+
+            price=float(row["forecast"]),
+
+            current_price=current_price,
+
+        )
+
+
+st.markdown("### 📊 Mwenendo wa Bei")
+
+chart_data = future_prices.copy()
+
+chart = (
+
+    alt.Chart(chart_data)
+
+    .mark_line(
+        point=True,
+        strokeWidth=4,
+        color="#2E7D32"
+    )
+
+    .encode(
+
+        x=alt.X(
+            "date:T",
+            title="Mwezi"
+        ),
+
+        y=alt.Y(
+            "forecast:Q",
+            title="Bei (TSh)"
+        ),
+
+        tooltip=[
+            alt.Tooltip(
+                "date:T",
+                title="Mwezi"
+            ),
+            alt.Tooltip(
+                "forecast:Q",
+                title="Bei"
+            ),
+        ],
+
+    )
+
+    .properties(
+        height=320
+    )
+
+)
+
+st.altair_chart(
+    chart,
+    use_container_width=True
+)
+
+st.success(
+
+    describe_trend(
+        market_analysis["trend_direction"]
+    )
+
+)# ==========================================================
+# FARMER INFORMATION
+# ==========================================================
+
+st.markdown("## 🧑‍🌾 Tuambie Kuhusu Mahindi Yako")
+
+st.write(
+    """
+Ili mfumo uweze kutoa ushauri unaokufaa,
+tafadhali jibu maswali yafuatayo.
+Majibu yako yatasaidia mfumo kufanya
+uchambuzi unaozingatia hali yako halisi.
+"""
+)
+
+with st.form("farmer_information"):
+
+    st.markdown("### 🌽 Taarifa za Mazao")
+
     col1, col2 = st.columns(2)
+
     with col1:
-        bags = st.number_input("Unataka kuuza magunia mangapi?", min_value=1, value=10, step=1)
-        storage_available = st.radio("Je, unaweza kuhifadhi mahindi yako kwa usalama?", ["Ndiyo", "Hapana"], index=0)
-        urgency = st.selectbox(
-            "Una uhitaji wa fedha kwa kiasi gani?",
-            ["Haraka iwezekanavyo", "Ndani ya mwezi mmoja", "Naweza kusubiri miezi 2-3"],
+
+        bags = st.number_input(
+            "Una magunia mangapi ya mahindi?",
+            min_value=1,
+            value=10,
+            step=1,
+        )
+
+        selling_plan = st.radio(
+            "Unapanga kufanya nini?",
+            [
+                "Nataka kuuza yote",
+                "Nataka kuuza sehemu",
+                "Bado sijafanya uamuzi",
+            ],
+            index=2,
+        )
+
+        storage_available = st.radio(
+            "Je, una sehemu salama ya kuhifadhi?",
+            [
+                "Ndiyo",
+                "Hapana",
+            ],
             index=0,
         )
-    with col2:
-        storage_method = st.selectbox(
-            "Unahifadhi mahindi kwa kutumia nini?",
-            ["Uhifadhi wa jadi", "Mifuko ya PICS", "Silo ya chuma", "Ghala"],
-            index=1,
-        )
-        st.caption("Taarifa hizi zitaonyeshwa tu kama muktadha wa maamuzi ya kisasa.")
 
-    submitted = st.form_submit_button("Pata ushauri")
-st.markdown("</div>", unsafe_allow_html=True)
+    with col2:
+
+        cash_urgency = st.selectbox(
+            "Unahitaji fedha lini?",
+            [
+                "Leo",
+                "Wiki hii",
+                "Ndani ya mwezi mmoja",
+                "Naweza kusubiri zaidi",
+            ],
+        )
+
+        storage_method = st.selectbox(
+            "Unatumia njia gani kuhifadhi mahindi?",
+            [
+                "Mifuko ya PICS",
+                "Ghala",
+                "Silo",
+                "Njia ya kawaida",
+            ],
+        )
+
+        experience = st.selectbox(
+            "Uzoefu wako wa kuhifadhi mahindi",
+            [
+                "Mdogo",
+                "Wastani",
+                "Mkubwa",
+            ],
+        )
+
+    st.markdown("---")
+
+    st.info(
+        """
+Mfumo utatumia taarifa hizi pamoja na
+utabiri wa bei ili kukupatia ushauri
+unaokufaa zaidi.
+"""
+    )
+
+    submitted = st.form_submit_button(
+        "🔍 Changanua na Nipatie Ushauri"
+    )
+    
+# ==========================================================
+# SYSTEM ANALYSIS
+# ==========================================================
 
 if submitted:
+
+    progress = st.progress(0)
+
+    status = st.empty()
+
+    status.info("🔍 Mfumo unachambua taarifa ulizoingiza...")
+
+    import time
+
+    steps = [
+
+        "✓ Inachambua bei ya sasa ya soko...",
+
+        "✓ Inachambua utabiri wa miezi mitatu ijayo...",
+
+        "✓ Inakadiria gharama na faida inayowezekana...",
+
+        "✓ Inatathmini hatari za kusubiri kuuza...",
+
+        "✓ Inalinganisha mahitaji yako ya fedha...",
+
+        "✓ Inatengeneza ushauri bora kwako..."
+
+    ]
+
+    for i, step in enumerate(steps):
+
+        status.info(step)
+
+        progress.progress((i + 1) / len(steps))
+
+        time.sleep(0.25)
+
+
+    # ======================================================
+    # DECISION ENGINE
+    # ======================================================
+
     economic_analysis = evaluate_economics(
+
         current_price_100kg=region_data["wholesale_100kg"],
+
         forecast_prices_100kg=forecast_df["forecast"].tolist(),
+
         storage_duration_months=3,
-        storage_cost=0.0,
-        transport_cost=0.0,
+
+        storage_cost=0,
+
+        transport_cost=0,
+
         storage_quality="kawaida",
+
     )
 
-    uncertainty_width_pct = 0.0
-    if "lower_95" in forecast_df.columns and "upper_95" in forecast_df.columns:
+
+    uncertainty_width_pct = 0
+
+    if (
+        "lower_95" in forecast_df.columns
+        and
+        "upper_95" in forecast_df.columns
+    ):
+
         uncertainty_width_pct = (
-            float(forecast_df["upper_95"].iloc[0]) - float(forecast_df["lower_95"].iloc[0])
-        ) / max(float(forecast_df["forecast"].iloc[0]), 1.0)
+
+            float(forecast_df["upper_95"].iloc[0])
+
+            -
+
+            float(forecast_df["lower_95"].iloc[0])
+
+        ) / max(
+
+            float(forecast_df["forecast"].iloc[0]),
+
+            1
+
+        )
+
 
     risk_assessment = assess_risk(
+
         uncertainty_width_pct=uncertainty_width_pct,
+
         storage_loss_pct=economic_analysis["storage_loss_pct"],
+
         volatility_pct=market_analysis["volatility_pct"],
+
         profitability_pct=economic_analysis["expected_net_benefit_pct"],
+
     )
 
-    decision = generate_decision(market_analysis, economic_analysis, risk_assessment)
-    explanation = explain_decision(decision, market_analysis, economic_analysis, risk_assessment)
-    farmer_message = build_farmer_message(decision)
 
-    st.markdown("### ✅  matokeo ya mfumo kulingana na machaguo yako")
-    insight_cols = st.columns(5)
-    with insight_cols[0]:
-        st.markdown("<div class='info-card'><div class='card-title'>📈 Mwenendo wa bei</div><div class='card-value'>" + market_analysis["trend_direction"] + "</div><div class='card-note'>Mwelekeo wa bei unaotabirika</div></div>", unsafe_allow_html=True)
-    with insight_cols[1]:
-        st.markdown("<div class='info-card'><div class='card-title'>📊 Mabadiliko yanayotarajiwa</div><div class='card-value'>" + f"{market_analysis['percentage_change_pct']:.1f}%" + "</div><div class='card-note'>Kulingana na ubashiri</div></div>", unsafe_allow_html=True)
-    with insight_cols[2]:
-        st.markdown("<div class='info-card'><div class='card-title'>🏪 Gharama za kuhifadhi</div><div class='card-value'>" + format_currency(economic_analysis["total_storage_expense"]) + "</div><div class='card-note'>Kulingana na makisio ya mfumo</div></div>", unsafe_allow_html=True)
-    with insight_cols[3]:
-        st.markdown("<div class='info-card'><div class='card-title'>💰 Faida/hasara inayotarajiwa</div><div class='card-value'>" + ("Faida" if economic_analysis["expected_net_benefit_100kg"] > 0 else "Hasara") + "</div><div class='card-note'>Baada ya gharama za kuhifadhi</div></div>", unsafe_allow_html=True)
-    with insight_cols[4]:
-        st.markdown("<div class='info-card'><div class='card-title'>⚠ Kiwango cha hatari</div><div class='card-value'>" + risk_assessment["risk_level"] + "</div><div class='card-note'>Kulingana na hatari ya kusubiri</div></div>", unsafe_allow_html=True)
+    decision = generate_decision(
 
-    st.markdown("### ✅ Mapendekezo ya mfumo")
+        market_analysis,
+
+        economic_analysis,
+
+        risk_assessment,
+
+    )
+
+
+    explanation = explain_decision(
+
+        decision,
+
+        market_analysis,
+
+        economic_analysis,
+
+        risk_assessment,
+
+    )
+
+
+    farmer_message = build_farmer_message(
+
+        decision
+
+    )
+
+    progress.empty()
+
+    status.success("✅ Uchambuzi umekamilika.")
+    
+# ==========================================================
+ # DECISION SUMMARY
+ # ==========================================================
+
+    st.markdown("## 📊 Muhtasari wa Uchambuzi")
+
+    summary1, summary2, summary3 = st.columns(3)
+
+    with summary1:
+
+        render_metric_card(
+
+        "📈 Mwelekeo wa Bei",
+
+        "Kupanda"
+
+        if market_analysis["trend_direction"] == "Increasing"
+
+        else
+
+        "Kushuka"
+
+        if market_analysis["trend_direction"] == "Decreasing"
+
+        else
+
+        "Kubaki Sawa",
+
+        "Makadirio ya miezi mitatu"
+
+    )
+
+    with summary2:
+
+       render_metric_card(
+
+        "💵 Bei Inayotarajiwa",
+
+        format_currency(
+
+            market_analysis["average_forecast_price"]
+
+        ),
+
+        "Wastani wa utabiri"
+
+    )
+
+    with summary3:
+         
+
+       difference = (
+
+        market_analysis["average_forecast_price"]
+
+        -
+
+        region_data["wholesale_100kg"]
+
+    )
+
+    render_metric_card(
+
+        "📊 Tofauti ya Bei",
+
+        format_currency(abs(difference)),
+
+        "Faida inayoweza kupatikana"
+
+        if difference > 0
+
+        else
+
+        "Kupungua kwa bei"
+
+    )
+    
+     # ==========================================================
+     # FINAL DECISION
+     # ==========================================================
+
+    st.markdown("## 🤖 Uamuzi wa Mfumo")
+
     if decision["action"] == "SELL_NOW":
-        recommendation_text = "Uza mahindi yako ndani ya wiki chache zijazo."
-        recommendation_class = "sell-now"
+
+      recommendation_title = "UUZE MAHINDI YAKO SASA"
+
+      recommendation_icon = "🟢"
+
+      recommendation_class = "sell-now"
+
     elif decision["action"] == "STORE":
-        recommendation_text = "Hifadhi mahindi yako kwa muda mfupi."
-        recommendation_class = "store"
+
+     recommendation_title = "HIFADHI MAHINDI YAKO"
+
+     recommendation_icon = "📦"
+
+     recommendation_class = "store"
+
     else:
-        recommendation_text = "Uza sehemu ya mahindi na uhifadhi yaliyobaki."
-        recommendation_class = "store-partial"
+
+      recommendation_title = "UUZE NUSU, HIFADHI NUSU"
+
+      recommendation_icon = "⚖️"
+
+      recommendation_class = "store-partial"
+
 
     st.markdown(
-        f"<div class='recommendation-card {recommendation_class}'><div class='hero-chip'>✅ Hatua inayopendekezwa</div><div class='hero-title' style='font-size: 2rem; margin-bottom: 0.6rem;'>{recommendation_text}</div><div class='hero-text'>{farmer_message['summary']}</div></div>",
+        f"""
+<div class="recommendation-card {recommendation_class}">
+    <div class="hero-chip">
+        {recommendation_icon} UAMUZI WA MFUMO
+    </div>
+    <div class="hero-title">
+        {recommendation_title}
+    </div>
+    <div class="hero-text">
+        {farmer_message["summary"]}
+    </div>
+</div>
+        """,
         unsafe_allow_html=True,
     )
-    st.write(f"**Kwa nini?** {farmer_message['reasoning']}")
-    st.write(f"**Matokeo yanayotarajiwa:** {explanation['expected_outcome']}")
-    st.write(f"**Hatari:** {farmer_message['risk_message']}")
-    st.write("**Masharti yaliyotumika:**")
-    for item in explanation["assumptions_used"]:
-        st.write(f"- {item}")
 
-    st.markdown("### 📋 machaguo mbalimbali yaliyopatikana")
-    comparison_cols = st.columns(3)
-    options = [
-        ("Uza yote sasa", "Hakikisha fedha za haraka na uepuke hatari ya kusubiri.", "Ndogo", False),
-        ("Hifadhi yote", "Kuwa na uwezekano wa faida kubwa lakini hatari ni kubwa zaidi.", "Kati", False),
-        ("Uza nusu, hifadhi nusu", "Chaguo la usawa kwa wakulima wenye mahitaji ya fedha na hatari ya soko.", "Ndogo⭐", False),
-    ]
-    recommended_option = 2 if decision["action"] == "STORE_PARTIALLY" else 0 if decision["action"] == "SELL_NOW" else 1
-    options[recommended_option] = (options[recommended_option][0], options[recommended_option][1], options[recommended_option][2], True)
+# ==========================================================
+# WHY THIS DECISION
+# ==========================================================
 
-    for idx, (title, note, risk_text, is_recommended) in enumerate(options):
-        with comparison_cols[idx]:
-            card_class = "comparison-card recommended" if is_recommended else "comparison-card"
-            st.markdown(
-                f"<div class='{card_class}'><div class='card-title'>{title}</div><div class='card-note'>{note}</div><div class='card-value'>{risk_text}</div></div>",
-                unsafe_allow_html=True,
-            )
+    st.markdown("## 💡 Kwa nini tumekushauri hivyo?")
 
-    st.markdown("### 📝 Hatua unazoweza kufata ili kufanya maamuzi sahihi")
-    for step in farmer_message["action_plan"]:
-        st.markdown(f"- ✓ {step}")
+    if decision["action"] == "SELL_NOW":
 
-    st.caption("Ushauri huu unategemea utabiri wa sasa na taarifa ulizoingiza. Unapaswa kuangalia soko tena kwa kawaida.")
-else:
-    st.info("Jaza taarifa za mkulima ili upate ushauri wa hatua inayofaa.")
+      explanation_text = f"""
+Bei ya sasa ya mahindi ni nzuri ukilinganisha
+na makadirio ya miezi ijayo.
 
-st.markdown("<div class='footer-card'>disclaimer:kwa maamuzi zaidi wasiliana na affisa masoko u<br/>Maize Price Forecasting and Decision Support System<br/>Mbeya and Iringa Regions, Tanzania</div>", unsafe_allow_html=True)
+Mfumo umeona kuwa kusubiri kuuza kunaweza
+kuongeza gharama za kuhifadhi bila kuongeza
+faida ya mauzo.
+
+Kwa hiyo kuuza mapema ndiyo chaguo salama zaidi.
+"""
+
+    elif decision["action"] == "STORE":
+
+      explanation_text = f"""
+Makadirio yanaonyesha kuwa bei inaweza
+kuongezeka katika miezi ijayo.
+
+Iwapo unaweza kuhifadhi mahindi vizuri,
+kusubiri kunaweza kukuongezea mapato.
+"""
+
+    else:
+
+      explanation_text = f"""
+Mfumo umebaini kuwa hakuna faida kubwa
+ya kuuza yote sasa wala kuhifadhi yote.
+
+Ndiyo maana unapendekezwa kuuza sehemu
+ili kupata fedha za sasa, huku ukihifadhi
+sehemu nyingine kusubiri mabadiliko ya soko.
+"""
+
+    st.info(explanation_text)
+
+# ==========================================================
+# MAPATO
+# ==========================================================
+
+    st.markdown("## 💰 Makadirio ya Mapato")
+
+    col1, col2, col3 = st.columns(3)
+
+    sell_now = region_data["wholesale_100kg"] * bags
+
+    future_value = (
+      market_analysis["average_forecast_price"]
+    * bags
+     )
+
+    difference = future_value - sell_now
+
+
+    with col1:
+
+      render_metric_card(
+
+        "Ukiyauza Leo",
+
+        format_currency(sell_now),
+
+        "Makadirio"
+
+     ) 
+
+
+    with col2:
+
+      render_metric_card(
+
+        "Ukisubiri miezi ijayo",
+
+        format_currency(future_value),
+
+        "Baada ya miezi 3"
+
+     )
+
+
+    with col3:
+
+      render_metric_card(
+
+        "Tofauti",
+
+        format_currency(abs(difference)),
+
+        "Faida"
+
+        if difference > 0
+
+        else
+
+        "Hasara"
+
+    )
+    
+    # ==========================================================
+# OTHER OPTIONS
+# ==========================================================
+
+    st.markdown("## 🔄 Chaguo Nyingine")
+
+    cards = st.columns(3)
+
+    choices = [
+
+("💰 Uza Yote", "Fedha za haraka lakini hakuna nafasi ya kufaidika endapo bei itapanda."),
+
+("📦 Hifadhi Yote", "Unaweza kupata faida zaidi, lakini pia unaongeza hatari ya hasara."),
+
+("⚖️ Uza Nusu", "Njia ya kati inayopunguza hatari na kukupa fedha za matumizi.")
+
+]
+
+    for column, choice in zip(cards, choices):
+
+      with column:
+
+        st.markdown(
+
+      f"""
+     <div class="comparison-card">
+
+     <div class="card-title">
+
+     {choice[0]}
+
+      </div>
+
+     <div class="card-note">
+
+     {choice[1]}
+
+     </div>
+
+     </div>
+     """,
+
+       unsafe_allow_html=True,
+
+     )
+        
+    # ==========================================================
+    # HATUA ZA KUFUATA
+    # ==========================================================
+
+    st.markdown("## 📝 Hatua Unazopaswa Kuchukua")
+
+    step1, step2, step3 = st.columns(3)
+
+    with step1:
+        st.markdown("""
+<div class="timeline-card">
+    <div class="timeline-number">1</div>
+    <div class="timeline-title">Leo</div>
+    <div class="timeline-text">
+        • Linganisha bei kutoka kwa wanunuzi mbalimbali.<br>
+        • Hakikisha umejua gharama za usafirishaji.<br>
+        • Andaa mahindi yako kwa ajili ya mauzo au uhifadhi.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+    with step2:
+        st.markdown("""
+<div class="timeline-card">
+    <div class="timeline-number">2</div>
+    <div class="timeline-title">Ndani ya Wiki Hii</div>
+    <div class="timeline-text">
+        • Fuatilia mabadiliko ya bei sokoni.<br>
+        • Kama mfumo unapendekeza kuuza, usichelewe kufanya maamuzi.<br>
+        • Kama unapendekeza kuhifadhi, hakikisha sehemu ya kuhifadhi ni salama.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+
+    with step3:
+        st.markdown("""
+<div class="timeline-card">
+    <div class="timeline-number">3</div>
+    <div class="timeline-title">Baada ya Kufanya Uamuzi</div>
+    <div class="timeline-text">
+        • Hifadhi kumbukumbu za mauzo.<br>
+        • Linganisha matokeo na makadirio ya mfumo.<br>
+        • Tembelea mfumo tena unapopata taarifa mpya za soko.
+    </div>
+</div>
+""", unsafe_allow_html=True)
+        
+        
+# ==========================================================
+# KUMBUKA
+# ==========================================================
+
+    st.markdown("## 📌 Kumbuka")
+
+    st.warning(
+"""
+Mfumo huu unatoa ushauri kwa kutumia:
+
+• Bei halisi za mahindi zilizokusanywa sokoni.
+
+• Mfano wa utabiri wa SARIMA.
+
+• Uchambuzi wa faida, gharama na hatari.
+
+Utabiri hauwezi kutabiri soko kwa uhakika wa asilimia 100.
+
+Iwapo kutatokea mabadiliko makubwa ya hali ya hewa,
+sera za serikali, au mahitaji ya soko,
+bei zinaweza kubadilika.
+
+Endelea kufuatilia taarifa za soko mara kwa mara
+kabla ya kufanya uamuzi wa mwisho.
+"""
+)
+
+# ==========================================================
+# FOOTER
+# ==========================================================
+
+    st.markdown(
+"""
+<div class="footer-card">
+
+<h3>🌽 Maize Price Forecasting and Decision Support System</h3>
+
+<p>
+
+Mfumo huu umetengenezwa kwa ajili ya kuwasaidia
+wakulima wa mahindi katika mikoa ya Mbeya na Iringa
+kufanya maamuzi bora kuhusu kuuza au kuhifadhi mazao yao.
+
+</p>
+
+<hr>
+
+<p>
+
+Bachelor of Data Science Final Year Project
+
+Eastern Africa Statistical Training Centre (EASTC)
+
+2026
+
+</p>
+
+</div>
+""",
+unsafe_allow_html=True,
+)    
+            

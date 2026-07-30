@@ -1,328 +1,1117 @@
+/* ==========================================================
+   MAIZE PRICE FORECASTING AND DECISION SUPPORT SYSTEM
+   Dashboard Stylesheet
+   ----------------------------------------------------------
+   Theme:
+   Modern • Agricultural • Clean • Farmer Friendly
+========================================================== */
+
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
 
-:root {
-    --primary: #2E7D32;
-    --primary-dark: #1F5A2D;
-    --bg: #F7F9F4;
-    --card: #FFFFFF;
-    --text: #263238;
-    --muted: #64727A;
-    --accent: #F4A300;
-    --warning: #D32F2F;
-    --border: #E1E9DD;
+
+/* ==========================================================
+   COLOR SYSTEM
+========================================================== */
+
+:root{
+
+    --primary:#2E7D32;
+
+    --primary-dark:#1B5E20;
+
+    --primary-light:#EAF6EA;
+
+    --secondary:#F4A300;
+
+    --secondary-light:#FFF6DF;
+
+    --danger:#C62828;
+
+    --success:#2E7D32;
+
+    --info:#1565C0;
+
+    --background:#F5F7F2;
+
+    --surface:#FFFFFF;
+
+    --surface-alt:#FAFBF8;
+
+    --text:#263238;
+
+    --text-light:#607D8B;
+
+    --border:#DCE6D5;
+
+    --shadow:
+        0 10px 25px rgba(0,0,0,.06);
+
+    --radius:20px;
+
 }
 
-* {
-    font-family: 'Inter', sans-serif;
+
+/* ==========================================================
+   GLOBAL RESET
+========================================================== */
+
+*{
+
+    margin:0;
+
+    padding:0;
+
+    box-sizing:border-box;
+
+    font-family:"Inter",sans-serif;
+
 }
 
-html, body, [class^='css'] {
-    background: var(--bg) !important;
-    color: var(--text);
+
+/* ==========================================================
+   PAGE
+========================================================== */
+
+html,
+body{
+
+    background:var(--background)!important;
+
+    color:var(--text)!important;
+
 }
 
-.stApp {
-    background: var(--bg);
-    color: var(--text);
+
+.stApp{
+
+    background:var(--background);
+
 }
 
-.block-container {
-    padding-top: 2rem;
-    padding-bottom: 2rem;
-    max-width: 1320px;
+
+.block-container{
+
+    max-width:1350px;
+
+    padding-top:2rem;
+
+    padding-bottom:3rem;
+
 }
 
-h1, h2, h3, h4 {
-    color: var(--text) !important;
-    font-weight: 800;
-    letter-spacing: -0.02em;
+
+/* ==========================================================
+   TYPOGRAPHY
+========================================================== */
+
+h1,
+h2,
+h3,
+h4,
+h5{
+
+    color:var(--text)!important;
+
+    font-weight:800;
+
+    letter-spacing:-.02em;
+
 }
 
-[data-testid="stSidebar"] {
-    background: #F4F7EE;
-    border-right: 1px solid var(--border);
+p{
+
+    color:var(--text-light);
+
+    line-height:1.8;
+
 }
 
-[data-testid="stSidebarContent"] {
-    padding: 1rem 0.85rem;
+
+/* ==========================================================
+   SIDEBAR
+========================================================== */
+
+[data-testid="stSidebar"]{
+
+    background:#F3F7EE;
+
+    border-right:1px solid var(--border);
+
 }
 
-.hero-section {
-    border-radius: 28px;
-    padding: 2.4rem 2rem;
-    background: linear-gradient(135deg, var(--primary-dark), var(--primary));
-    color: white;
-    margin-bottom: 1.5rem;
-    box-shadow: 0 22px 40px rgba(38, 50, 56, 0.12);
+[data-testid="stSidebarContent"]{
+
+    padding:1rem;
+
 }
 
-.hero-chip {
-    display: inline-flex;
-    align-items: center;
-    padding: 0.65rem 1rem;
-    border-radius: 999px;
-    background: rgba(255,255,255,0.16);
-    color: #F9F5E5;
-    font-weight: 700;
-    margin-bottom: 1rem;
+.sidebar-card{
+
+    background:white;
+
+    border-radius:18px;
+
+    padding:1rem;
+
+    margin-bottom:1rem;
+
+    border:1px solid var(--border);
+
+    box-shadow:var(--shadow);
+
 }
 
-.hero-title {
-    font-size: clamp(2rem, 3.2vw, 2.8rem);
-    font-weight: 800;
-    margin-bottom: 0.8rem;
-    line-height: 1.15;
+.sidebar-title{
+
+    color:var(--primary-dark);
+
+    font-size:17px;
+
+    font-weight:700;
+
+    margin-bottom:.5rem;
+
 }
 
-.hero-text {
-    font-size: 1rem;
-    line-height: 1.7;
-    color: rgba(255,255,255,0.95);
-    max-width: 780px;
+.sidebar-text{
+
+    color:var(--text);
+
+    line-height:1.7;
+
+    font-size:15px;
+
 }
 
-.hero-actions {
-    margin-top: 1rem;
+.sidebar-meta{
+
+    color:var(--text-light);
+
+    margin-top:.8rem;
+
+    font-size:14px;
+
+    line-height:1.6;
+
 }
 
-.hero-note {
-    color: rgba(255,255,255,0.9);
-    font-size: 0.95rem;
+
+/* ==========================================================
+   STREAMLIT WIDGETS
+========================================================== */
+
+.stButton>button{
+
+    width:100%;
+
+    border:none!important;
+
+    border-radius:50px!important;
+
+    padding:.9rem 1rem!important;
+
+    background:linear-gradient(
+        135deg,
+        #2E7D32,
+        #43A047
+    )!important;
+
+    color:white!important;
+
+    font-size:16px!important;
+
+    font-weight:700!important;
+
+    box-shadow:0 8px 18px rgba(46,125,50,.25);
+
+    transition:.25s;
+
 }
 
-.info-card, .comparison-card, .sidebar-card, .form-shell {
-    background: var(--card);
-    border-radius: 22px;
-    border: 1px solid var(--border);
-    box-shadow: 0 12px 28px rgba(38, 50, 56, 0.06);
-    transition: transform 0.2s ease, box-shadow 0.2s ease;
+.stButton>button:hover{
+
+    transform:translateY(-2px);
+
+    background:linear-gradient(
+        135deg,
+        #256C2A,
+        #388E3C
+    )!important;
+
 }
 
-.info-card:hover, .comparison-card:hover {
-    transform: translateY(-2px);
-    box-shadow: 0 16px 30px rgba(38, 50, 56, 0.09);
+.stButton>button *{
+
+    color:white!important;
+
 }
 
-.info-card {
-    padding: 1rem 1.1rem;
-    margin-bottom: 1rem;
-    min-height: 130px;
-    display: flex;
-    flex-direction: column;
-    justify-content: space-between;
+
+/* ==========================================================
+   INPUTS
+========================================================== */
+
+.stTextInput input,
+.stNumberInput input,
+.stSelectbox input,
+.stTextArea textarea{
+
+    background:white!important;
+
+    border:1px solid var(--border)!important;
+
+    border-radius:14px!important;
+
+    color:var(--text)!important;
+
 }
 
-.card-title {
-    font-size: 0.9rem;
-    font-weight: 700;
-    color: #4E6B51;
-    margin-bottom: 0.4rem;
-}
-
-.card-value {
-    font-size: 1.3rem;
-    font-weight: 800;
-    color: var(--text);
-    margin-bottom: 0.25rem;
-}
-
-.card-note {
-    color: var(--muted);
-    line-height: 1.6;
-    font-size: 0.9rem;
-}
-
-.recommendation-card {
-    border-radius: 24px;
-    padding: 1.3rem;
-    margin-bottom: 1rem;
-    box-shadow: 0 18px 32px rgba(38, 50, 56, 0.14);
-}
-
-.recommendation-card.sell-now {
-    background: linear-gradient(135deg, #f59e0b, #fbbf24);
-    color: #1f2937;
-}
-
-.recommendation-card.store {
-    background: linear-gradient(135deg, var(--primary), #4caf50);
-    color: white;
-}
-
-.recommendation-card.store-partial {
-    background: linear-gradient(135deg, #2563eb, #3b82f6);
-    color: white;
-}
-
-.comparison-card {
-    padding: 1rem;
-    min-height: 150px;
-    margin-bottom: 1rem;
-}
-
-.comparison-card.recommended {
-    border: 2px solid var(--primary);
-    background: linear-gradient(180deg, #f7fff4, #eef8ea);
-}
-
-.form-shell {
-    padding: 1.2rem;
-    margin-top: 0.35rem;
-    margin-bottom: 1rem;
-}
-
-.sidebar-card {
-    padding: 0.9rem 1rem;
-    margin-bottom: 0.8rem;
-}
-
-.sidebar-title {
-    font-weight: 800;
-    color: var(--primary-dark);
-    margin-bottom: 0.35rem;
-}
-
-.sidebar-text {
-    color: var(--text);
-    line-height: 1.6;
-    font-size: 0.95rem;
-}
-
-.sidebar-meta {
-    color: var(--muted);
-    font-size: 0.9rem;
-    line-height: 1.6;
-    margin-top: 0.35rem;
-}
-
-.footer-card {
-    background: white;
-    border: 1px solid var(--border);
-    border-radius: 20px;
-    padding: 1rem 1.2rem;
-    text-align: center;
-    color: var(--muted);
-    font-size: 0.9rem;
-    line-height: 1.7;
-    margin-top: 1.2rem;
-}
-
-.stButton>button {
-    background: linear-gradient(135deg, #2E7D32, #43A047) !important;
-    color: #FFFFFF !important;
-    border: none !important;
-    border-radius: 999px !important;
-    padding: 0.8rem 1.4rem !important;
-    font-weight: 700 !important;
-    box-shadow: 0 10px 20px rgba(46, 125, 50, 0.18) !important;
-}
-
-.stButton>button:hover {
-    background: linear-gradient(135deg, #256D2A, #388E3C) !important;
-    color: #FFFFFF !important;
-}
-
-.stButton>button span,
-.stButton>button p,
-.stButton>button div {
-    color: #FFFFFF !important;
-}
-
-.stTextInput>div>div>input,
-.stNumberInput>div>div>input,
-.stSelectbox>div>div>div>input,
-.stTextArea>div>div>textarea {
-    background: #FCFDF8 !important;
-    border: 1px solid #D7E3D0 !important;
-    border-radius: 12px !important;
-    padding: 0.75rem 0.9rem !important;
-    color: var(--text) !important;
-}
 
 .stTextInput label,
 .stNumberInput label,
 .stSelectbox label,
-.stTextArea label,
-.stCheckbox label,
 .stRadio label,
-div[data-testid="stWidgetLabel"] {
-    color: var(--text) !important;
-    font-size: 16px !important;
-    font-weight: 600 !important;
-    margin-bottom: 0.4rem !important;
-    display: block !important;
+.stCheckbox label{
+
+    color:var(--text)!important;
+
+    font-size:15px!important;
+
+    font-weight:600!important;
+
 }
 
-.stTextInput div[data-testid="stWidgetLabelHelp"],
-.stNumberInput div[data-testid="stWidgetLabelHelp"],
-.stSelectbox div[data-testid="stWidgetLabelHelp"],
-.stTextArea div[data-testid="stWidgetLabelHelp"],
-.stCheckbox div[data-testid="stWidgetLabelHelp"],
-.stRadio div[data-testid="stWidgetLabelHelp"],
-.stCaption,
-[data-testid="stCaption"] {
-    color: #607D8B !important;
-    font-size: 14px !important;
-    line-height: 1.45 !important;
+
+/* ==========================================================
+   RADIO BUTTONS
+========================================================== */
+
+.stRadio [data-testid="stRadioOption"]{
+
+    border-radius:12px;
+
+    padding:.4rem;
+
+    transition:.25s;
+
 }
 
-.stRadio > div {
-    gap: 0.4rem;
+.stRadio [data-testid="stRadioOption"]:hover{
+
+    background:#F7FAF5;
+
 }
 
-.stRadio [data-testid="stRadioOption"] {
-    padding: 0.35rem 0.45rem;
-    border-radius: 10px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
-    color: var(--text) !important;
+.stRadio [data-testid="stRadioOption"]:has(input:checked){
+
+    background:#EDF8EA;
+
+    border:1px solid #B8D7AE;
+
 }
 
-.stRadio [data-testid="stRadioOption"]:hover {
-    background: #F6F9F0;
+
+/* ==========================================================
+   ALERTS
+========================================================== */
+
+.stAlert{
+
+    border-radius:16px;
+
+    border:1px solid var(--border);
+
 }
 
-.stRadio [data-testid="stRadioOption"]:has(input:checked) {
-    background: #F4F9ED;
-    border: 1px solid #B9D7AA;
+/* ==========================================================
+   HERO SECTION
+========================================================== */
+
+.hero-section{
+
+    background:linear-gradient(
+        135deg,
+        #1B5E20 0%,
+        #2E7D32 55%,
+        #43A047 100%
+    );
+
+    border-radius:28px;
+
+    padding:2.5rem;
+
+    color:white;
+
+    margin-bottom:2rem;
+
+    box-shadow:
+        0 20px 40px rgba(46,125,50,.20);
+
 }
 
-.stRadio [data-testid="stRadioOption"] label,
-.stRadio [data-testid="stRadioOption"] span,
-.stRadio [data-testid="stRadioOption"] div,
-.stRadio [data-testid="stRadioOption"] p,
-.stRadio label,
-.stRadio span,
-.stRadio p {
-    color: var(--text) !important;
-    font-size: 15px !important;
-    font-weight: 500 !important;
-    opacity: 1 !important;
+.hero-chip{
+
+    display:inline-block;
+
+    padding:.55rem 1rem;
+
+    border-radius:40px;
+
+    background:rgba(255,255,255,.16);
+
+    font-size:14px;
+
+    font-weight:700;
+
+    margin-bottom:1rem;
+
 }
 
-.stRadio [data-testid="stRadioOption"]:has(input:checked) label,
-.stRadio [data-testid="stRadioOption"]:has(input:checked) span,
-.stRadio [data-testid="stRadioOption"]:has(input:checked) div,
-.stRadio [data-testid="stRadioOption"]:has(input:checked) p {
-    color: var(--text) !important;
-    font-weight: 700 !important;
+.hero-title{
+
+    font-size:2.6rem;
+
+    font-weight:800;
+
+    color:white!important;
+
+    line-height:1.2;
+
+    margin-bottom:1rem;
+
 }
 
-.stRadio input[type="radio"] {
-    accent-color: var(--primary) !important;
+.hero-text{
+
+    max-width:760px;
+
+    color:rgba(255,255,255,.94);
+
+    line-height:1.9;
+
+    font-size:17px;
+
 }
 
-.stAlert {
-    border-radius: 16px;
-    border: 1px solid var(--border);
+.hero-note{
+
+    margin-top:1.4rem;
+
+    display:inline-block;
+
+    background:rgba(255,255,255,.14);
+
+    padding:.8rem 1rem;
+
+    border-radius:12px;
+
+    color:white;
+
 }
 
-@media (max-width: 960px) {
-    .hero-title {
-        font-size: 2rem;
-    }
-    .block-container {
-        padding-left: 1rem;
-        padding-right: 1rem;
-    }
+
+/* ==========================================================
+   INFORMATION CARDS
+========================================================== */
+
+.info-card{
+
+    background:white;
+
+    border-radius:20px;
+
+    padding:1.25rem;
+
+    border:1px solid var(--border);
+
+    box-shadow:var(--shadow);
+
+    transition:.25s;
+
+    min-height:150px;
+
+    display:flex;
+
+    flex-direction:column;
+
+    justify-content:space-between;
+
+}
+
+.info-card:hover{
+
+    transform:translateY(-4px);
+
+    box-shadow:
+        0 18px 35px rgba(0,0,0,.10);
+
+}
+
+.card-title{
+
+    font-size:14px;
+
+    font-weight:700;
+
+    color:var(--text-light);
+
+    margin-bottom:.7rem;
+
+}
+
+.card-value{
+
+    font-size:1.7rem;
+
+    font-weight:800;
+
+    color:var(--text);
+
+    line-height:1.3;
+
+}
+
+.card-note{
+
+    margin-top:.8rem;
+
+    color:var(--text-light);
+
+    font-size:14px;
+
+    line-height:1.6;
+
+}
+
+
+/* ==========================================================
+   FORECAST CARDS
+========================================================== */
+
+.forecast-card{
+
+    background:white;
+
+    border-radius:22px;
+
+    padding:1.4rem;
+
+    text-align:center;
+
+    border:1px solid var(--border);
+
+    box-shadow:var(--shadow);
+
+    transition:.25s;
+
+    margin-bottom:1rem;
+
+}
+
+.forecast-card:hover{
+
+    transform:translateY(-5px);
+
+}
+
+.forecast-month{
+
+    font-size:15px;
+
+    font-weight:700;
+
+    color:var(--primary);
+
+    margin-bottom:1rem;
+
+}
+
+.forecast-price{
+
+    font-size:2rem;
+
+    font-weight:800;
+
+    color:var(--text);
+
+}
+
+.forecast-change{
+
+    margin-top:.8rem;
+
+    font-size:18px;
+
+    font-weight:700;
+
+}
+
+
+/* ==========================================================
+   FORM CONTAINER
+========================================================== */
+
+.form-shell{
+
+    background:white;
+
+    border-radius:24px;
+
+    padding:2rem;
+
+    border:1px solid var(--border);
+
+    box-shadow:var(--shadow);
+
+    margin:1.5rem 0;
+
+}
+
+
+/* ==========================================================
+   RECOMMENDATION PANEL
+========================================================== */
+
+.recommendation-card{
+
+    border-radius:26px;
+
+    padding:2rem;
+
+    margin:2rem 0;
+
+    color:white;
+
+    box-shadow:
+        0 22px 45px rgba(0,0,0,.18);
+
+}
+
+.recommendation-card.sell-now{
+
+    background:
+    linear-gradient(
+        135deg,
+        #F57C00,
+        #F9A825
+    );
+
+}
+
+.recommendation-card.store{
+
+    background:
+    linear-gradient(
+        135deg,
+        #2E7D32,
+        #43A047
+    );
+
+}
+
+.recommendation-card.store-partial{
+
+    background:
+    linear-gradient(
+        135deg,
+        #1565C0,
+        #42A5F5
+    );
+
+}
+
+.recommendation-card .hero-title{
+
+    color:white!important;
+
+    font-size:2.3rem;
+
+}
+
+.recommendation-card .hero-text{
+
+    color:rgba(255,255,255,.96);
+
+}
+
+
+/* ==========================================================
+   COMPARISON CARDS
+========================================================== */
+
+.comparison-card{
+
+    background:white;
+
+    border-radius:20px;
+
+    padding:1.4rem;
+
+    border:1px solid var(--border);
+
+    box-shadow:var(--shadow);
+
+    min-height:200px;
+
+    transition:.25s;
+
+}
+
+.comparison-card:hover{
+
+    transform:translateY(-4px);
+
+}
+
+.comparison-card.recommended{
+
+    border:3px solid var(--primary);
+
+    background:#F4FBF2;
+
+}
+
+/* ==========================================================
+   DECISION EXPLANATION
+========================================================== */
+
+.explanation-card{
+
+    background:#FFFFFF;
+
+    border-left:6px solid var(--primary);
+
+    border-radius:20px;
+
+    padding:1.5rem;
+
+    margin-top:1.5rem;
+
+    margin-bottom:1rem;
+
+    box-shadow:var(--shadow);
+
+}
+
+.explanation-title{
+
+    font-size:22px;
+
+    font-weight:800;
+
+    color:var(--primary-dark);
+
+    margin-bottom:1rem;
+
+}
+
+.explanation-text{
+
+    font-size:16px;
+
+    color:var(--text);
+
+    line-height:1.9;
+
+}
+
+
+/* ==========================================================
+   SYSTEM FACTORS
+========================================================== */
+
+.factor-card{
+
+    background:#FFFFFF;
+
+    border-radius:18px;
+
+    padding:1.3rem;
+
+    border:1px solid var(--border);
+
+    box-shadow:var(--shadow);
+
+    margin-top:1rem;
+
+    margin-bottom:1rem;
+
+}
+
+.factor-title{
+
+    color:var(--primary-dark);
+
+    font-size:18px;
+
+    font-weight:700;
+
+    margin-bottom:1rem;
+
+}
+
+.factor-list{
+
+    list-style:none;
+
+    padding:0;
+
+}
+
+.factor-list li{
+
+    display:flex;
+
+    align-items:flex-start;
+
+    gap:.7rem;
+
+    margin-bottom:.9rem;
+
+    color:var(--text);
+
+    font-size:15px;
+
+    line-height:1.7;
+
+}
+
+.factor-list li::before{
+
+    content:"✔";
+
+    color:var(--primary);
+
+    font-weight:700;
+
+}
+
+
+/* ==========================================================
+   ACTION PLAN
+========================================================== */
+
+.action-card{
+
+    background:#FFFFFF;
+
+    border-radius:20px;
+
+    border:1px solid var(--border);
+
+    padding:1.5rem;
+
+    margin-top:1.5rem;
+
+    box-shadow:var(--shadow);
+
+}
+
+.action-title{
+
+    font-size:22px;
+
+    font-weight:800;
+
+    color:var(--primary-dark);
+
+    margin-bottom:1rem;
+
+}
+
+.action-step{
+
+    background:#F8FBF6;
+
+    border-left:5px solid var(--primary);
+
+    border-radius:12px;
+
+    padding:1rem;
+
+    margin-bottom:.9rem;
+
+    color:var(--text);
+
+    font-size:15px;
+
+    line-height:1.7;
+
+}
+
+
+/* ==========================================================
+   SUCCESS / WARNING / INFO BOXES
+========================================================== */
+
+.success-box{
+
+    background:#EDF8EA;
+
+    border-left:5px solid #2E7D32;
+
+    padding:1rem;
+
+    border-radius:14px;
+
+    margin:1rem 0;
+
+}
+
+.warning-box{
+
+    background:#FFF7E6;
+
+    border-left:5px solid #F4A300;
+
+    padding:1rem;
+
+    border-radius:14px;
+
+    margin:1rem 0;
+
+}
+
+.danger-box{
+
+    background:#FDECEC;
+
+    border-left:5px solid #C62828;
+
+    padding:1rem;
+
+    border-radius:14px;
+
+    margin:1rem 0;
+
+}
+
+
+/* ==========================================================
+   FOOTER
+========================================================== */
+
+.footer-card{
+
+    margin-top:3rem;
+
+    background:#FFFFFF;
+
+    border:1px solid var(--border);
+
+    border-radius:20px;
+
+    padding:1.5rem;
+
+    text-align:center;
+
+    color:var(--text-light);
+
+    font-size:14px;
+
+    line-height:1.8;
+
+    box-shadow:var(--shadow);
+
+}
+
+
+/* ==========================================================
+   ALTAIR CHART
+========================================================== */
+
+.vega-embed{
+
+    background:#FFFFFF;
+
+    border-radius:22px;
+
+    padding:1rem;
+
+    border:1px solid var(--border);
+
+    box-shadow:var(--shadow);
+
+}
+
+
+/* ==========================================================
+   MOBILE
+========================================================== */
+
+@media (max-width:900px){
+
+.hero-title{
+
+    font-size:2rem;
+
+}
+
+.card-value{
+
+    font-size:1.35rem;
+
+}
+
+.forecast-price{
+
+    font-size:1.5rem;
+
+}
+
+.block-container{
+
+    padding-left:1rem;
+
+    padding-right:1rem;
+
+}
+
+.form-shell{
+
+    padding:1.2rem;
+
+}
+
+.info-card{
+
+    min-height:auto;
+
+}
+
+}
+
+
+/* ==========================================================
+   SCROLLBAR
+========================================================== */
+
+::-webkit-scrollbar{
+
+    width:10px;
+
+}
+
+::-webkit-scrollbar-track{
+
+    background:#EEF4EA;
+
+}
+
+::-webkit-scrollbar-thumb{
+
+    background:#A5C59D;
+
+    border-radius:20px;
+
+}
+
+::-webkit-scrollbar-thumb:hover{
+
+    background:#6FA66B;
+
+}
+
+/* ==========================================================
+   TIMELINE CARDS
+========================================================== */
+
+.timeline-card{
+
+    background:#FFFFFF !important;
+
+    border:1px solid var(--border) !important;
+
+    border-radius:20px !important;
+
+    padding:1.5rem !important;
+
+    min-height:260px;
+
+    box-shadow:var(--shadow) !important;
+
+    transition:.25s;
+
+    position:relative;
+
+}
+
+.timeline-card:hover{
+
+    transform:translateY(-4px);
+
+    box-shadow:
+        0 18px 35px rgba(0,0,0,.10) !important;
+
+}
+
+.timeline-number{
+
+    width:42px;
+
+    height:42px;
+
+    border-radius:50%;
+
+    background:var(--primary);
+
+    color:white !important;
+
+    display:flex;
+
+    align-items:center;
+
+    justify-content:center;
+
+    font-size:18px;
+
+    font-weight:800;
+
+    margin-bottom:1rem;
+
+}
+
+.timeline-title{
+
+    font-size:18px;
+
+    font-weight:700;
+
+    color:var(--primary-dark) !important;
+
+    margin-bottom:.8rem;
+
+}
+
+.timeline-text{
+
+    color:var(--text) !important;
+
+    line-height:1.8;
+
+    font-size:15px;
+
+}
+
+.timeline-card::after{
+
+    content:"→";
+
+    position:absolute;
+
+    top:24px;
+
+    right:-18px;
+
+    font-size:28px;
+
+    color:var(--primary);
+
+}
+
+.timeline-card:last-child::after{
+
+    display:none;
+
 }
 

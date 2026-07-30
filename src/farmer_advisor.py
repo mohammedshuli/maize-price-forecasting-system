@@ -1,94 +1,428 @@
-# src/farmer_advisor.py
 """
-Farmer Advisor Service.
-This module is a presentation layer that translates the structured output from
- the decision engine into plain-language guidance for the dashboard.
+==========================================================
+MAIZE PRICE FORECASTING AND DECISION SUPPORT SYSTEM
+
+Farmer Advisory Service
+
+This module is responsible ONLY for communicating the
+decision engine results in farmer-friendly language.
+
+It DOES NOT:
+
+• calculate forecasts
+• calculate profitability
+• calculate risks
+• make business decisions
+
+It ONLY converts structured decision outputs into
+clear, practical advice that a farmer can easily
+understand.
+
+==========================================================
 """
 
 from typing import Any, Dict, List
 
 
+# ==========================================================
+# COMMON TEXT LIBRARY
+# ==========================================================
+
+ACTION_LABELS = {
+    "SELL_NOW": "UZA SASA",
+    "STORE": "HIFADHI MAHINDI",
+    "STORE_PARTIALLY": "UZA SEHEMU, HIFADHI SEHEMU",
+}
+
+
+RISK_LABELS = {
+    "LOW": "Hatari ni ndogo",
+    "MEDIUM": "Hatari ni ya wastani",
+    "HIGH": "Hatari ni kubwa",
+}
+
+
+# ==========================================================
+# HELPER
+# ==========================================================
+
+def normalize_action(action: str) -> str:
+    """
+    Ensure an action always has a valid value.
+    """
+
+    if not action:
+        return "SELL_NOW"
+
+    return action.strip().upper()
+
+
+def normalize_risk(risk: str) -> str:
+    """
+    Normalize risk level.
+    """
+
+    if not risk:
+        return "MEDIUM"
+
+    return risk.strip().upper()
+
+# ==========================================================
+# SUMMARY MESSAGE
+# ==========================================================
+
 def build_summary(decision: Dict[str, Any]) -> str:
-    """Build a short summary message suitable for dashboard display."""
-    action = decision.get("action", "SELL_NOW")
-    reasons = decision.get("reasons", [])
+    """
+    Build the first message shown to the farmer.
+
+    This should answer one question:
+
+    "Kwa ujumla nifanye nini?"
+    """
+
+    action = normalize_action(
+        decision.get("action")
+    )
 
     if action == "SELL_NOW":
-        return "Market prices are expected to decline or remain unattractive, so selling soon is recommended."
-    if action == "STORE_PARTIALLY":
-        return "Market conditions suggest a cautious approach, so selling part of the harvest and storing the rest is advised."
-    return "Market conditions appear favourable for storing maize for a later sale."
 
+        return (
+            "Kwa kuzingatia hali ya soko kwa sasa pamoja na "
+            "utabiri wa bei kwa miezi ijayo, mfumo unapendekeza "
+            "uuze mahindi yako mapema ili kuepuka gharama za "
+            "kuhifadhi ambazo zinaweza zisirudishwe na ongezeko "
+            "la bei linalotarajiwa."
+        )
+
+    elif action == "STORE_PARTIALLY":
+
+        return (
+            "Kwa hali ya sasa ya soko, ni busara kuuza sehemu "
+            "ya mahindi yako ili kupata fedha za matumizi ya "
+            "haraka, huku ukihifadhi sehemu iliyobaki kusubiri "
+            "mabadiliko ya bei katika kipindi kijacho."
+        )
+
+    elif action == "STORE":
+
+        return (
+            "Uchambuzi unaonyesha kuwa kuna uwezekano wa bei "
+            "kuongezeka katika miezi ijayo. Ikiwa una sehemu "
+            "nzuri ya kuhifadhi mahindi, unaweza kusubiri kabla "
+            "ya kuuza ili kuongeza mapato."
+        )
+
+    return (
+        "Mfumo haukuweza kubaini mapendekezo mahsusi. "
+        "Endelea kufuatilia taarifa za soko kabla ya kufanya "
+        "uamuzi wa kuuza au kuhifadhi mahindi yako."
+    )
+    
+    # ==========================================================
+# WHY THIS RECOMMENDATION?
+# ==========================================================
 
 def build_reasoning(decision: Dict[str, Any]) -> str:
-    """Translate the technical decision reasons into plain language."""
+    """
+    Explain WHY the recommendation was made.
+
+    This text should read as if an agricultural extension
+    officer is explaining the situation to the farmer.
+    """
+
+    action = normalize_action(
+        decision.get("action")
+    )
+
     reasons = decision.get("reasons", [])
-    if not reasons:
-        return "The recommendation is based on the current market and storage conditions."
 
-    if any("declining" in reason.lower() for reason in reasons):
-        return "The expected increase in price is unlikely to outweigh the risks of waiting."
-    if any("loss" in reason.lower() for reason in reasons):
-        return "The expected increase in price is unlikely to cover storage and transport costs."
-    if any("moderate" in reason.lower() for reason in reasons):
-        return "The outlook is mixed, so a balanced approach is more appropriate."
-    return "The recommendation is based on the current market trend and the expected cost of storage."
+    if action == "SELL_NOW":
 
+        return (
+            "Mfumo umebaini kuwa ongezeko la bei "
+            "linalotarajiwa katika miezi ijayo ni dogo "
+            "ukilinganisha na gharama pamoja na hatari za "
+            "kuhifadhi mahindi kwa muda mrefu. Kwa hali hii, "
+            "kuuza mapema kunaweza kukusaidia kupata thamani "
+            "nzuri ya mazao yako na kupunguza uwezekano wa "
+            "kupata hasara endapo bei zitashuka."
+        )
+
+    elif action == "STORE":
+
+        return (
+            "Utabiri unaonyesha kuwa bei zinaweza kuongezeka "
+            "katika kipindi kijacho. Ikiwa una sehemu salama "
+            "ya kuhifadhi mahindi na huhitaji fedha kwa haraka, "
+            "kusubiri kwa muda kunaweza kuongeza mapato "
+            "utakapouza baadaye."
+        )
+
+    elif action == "STORE_PARTIALLY":
+
+        return (
+            "Hali ya soko haionyeshi faida kubwa ya kuuza yote "
+            "wala kuhifadhi yote. Kwa hiyo, kuuza sehemu ya "
+            "mahindi ili kukidhi mahitaji ya sasa na kuhifadhi "
+            "sehemu iliyobaki ni njia nzuri ya kupunguza "
+            "hatari huku ukibaki na nafasi ya kunufaika endapo "
+            "bei zitaongezeka."
+        )
+
+    if reasons:
+
+        return (
+            "Mapendekezo haya yametolewa baada ya kuchambua "
+            "hali ya sasa ya soko, utabiri wa bei pamoja na "
+            "gharama zinazoweza kujitokeza wakati wa kuhifadhi "
+            "mahindi."
+        )
+
+    return (
+        "Mfumo umefanya uchambuzi wa taarifa ulizoingiza na "
+        "kulinganisha na mwenendo wa soko ili kukupa ushauri "
+        "unaoweza kukusaidia kufanya uamuzi bora."
+    )
+    
+    # ==========================================================
+# STORAGE AND MARKETING ADVICE
+# ==========================================================
 
 def build_storage_advice(action: str) -> str:
-    """Create practical storage advice based on the chosen action."""
-    if action == "SELL_NOW":
-        return "Sell through trusted buyers or cooperatives and compare offers before finalising the sale."
-    if action == "STORE_PARTIALLY":
-        return "Sell enough maize to meet urgent cash needs, then store the remainder in a clean, dry place."
-    return "Dry the maize thoroughly, keep it in a clean and dry store, and inspect it regularly for pests or moisture."
+    """
+    Provide practical advice that a farmer can immediately use.
+    """
 
+    action = normalize_action(action)
+
+    if action == "SELL_NOW":
+
+        return (
+            "Tafuta wanunuzi tofauti kabla ya kuuza ili "
+            "ulinganishe bei. Ikiwezekana, uliza bei kwa "
+            "vyama vya ushirika, wafanyabiashara wa eneo lako "
+            "au masoko makubwa kabla ya kufanya uamuzi wa mwisho."
+        )
+
+    elif action == "STORE_PARTIALLY":
+
+        return (
+            "Unaweza kuuza sehemu ya mahindi yako ili kupata "
+            "fedha za matumizi ya sasa, kisha uhifadhi sehemu "
+            "iliyobaki mahali pakavu na salama. Njia hii "
+            "inakusaidia kupunguza hatari na bado kubaki na "
+            "nafasi ya kunufaika endapo bei zitaongezeka."
+        )
+
+    elif action == "STORE":
+
+        return (
+            "Kabla ya kuhifadhi, hakikisha mahindi yamekauka "
+            "vizuri. Tumia njia salama za uhifadhi kama "
+            "mifuko ya PICS, silo ya chuma au ghala safi "
+            "lisilo na unyevunyevu. Kagua mahindi mara kwa "
+            "mara ili kuzuia wadudu na upotevu wa mazao."
+        )
+
+    return (
+        "Endelea kufuatilia taarifa za soko na hakikisha "
+        "mahindi yako yanahifadhiwa vizuri ili kupunguza "
+        "upotevu wa mazao."
+    )
+    
+    # ==========================================================
+# RISK EXPLANATION
+# ==========================================================
 
 def build_risk_message(risk_level: str) -> str:
-    """Translate the technical risk level into farmer-friendly guidance."""
-    normalized = (risk_level or "").strip().upper()
-    if normalized == "LOW":
-        return "The outlook is relatively stable, but market conditions can still change."
-    if normalized == "MEDIUM":
-        return "Prices may change unexpectedly. Monitor the market before making large decisions."
-    return "There is considerable uncertainty. Avoid relying only on this forecast when making major decisions."
+    """
+    Explain the level of risk in language that is easy for
+    farmers to understand.
+    """
 
+    risk = normalize_risk(risk_level)
+
+    if risk == "LOW":
+
+        return (
+            "Kwa sasa hatari ya kufanya uamuzi huu ni ndogo. "
+            "Hata hivyo, bei za mazao zinaweza kubadilika wakati "
+            "wowote kutokana na mabadiliko ya soko, hali ya hewa "
+            "au mahitaji ya wanunuzi. Endelea kufuatilia taarifa "
+            "za soko mara kwa mara."
+        )
+
+    elif risk == "MEDIUM":
+
+        return (
+            "Kuna uwezekano wa mabadiliko ya bei katika kipindi "
+            "kijacho. Ingawa ushauri huu unaonyesha njia nzuri ya "
+            "kufuata, ni muhimu kuendelea kufuatilia taarifa za "
+            "soko kabla ya kufanya uamuzi wa mwisho."
+        )
+
+    elif risk == "HIGH":
+
+        return (
+            "Hali ya soko inaonyesha kutokuwa na uhakika mkubwa. "
+            "Bei zinaweza kubadilika haraka kutokana na sababu "
+            "kama hali ya hewa, uzalishaji, sera za serikali au "
+            "mahitaji ya soko. Ikiwezekana, usifanye maamuzi "
+            "makubwa kwa kutegemea utabiri pekee."
+        )
+
+    return (
+        "Hatari haikuweza kutathminiwa kikamilifu. "
+        "Endelea kufuatilia taarifa za soko na ushauri wa "
+        "maafisa ugani kabla ya kufanya maamuzi muhimu."
+    )
+    
+    # ==========================================================
+# PRACTICAL ACTION PLAN
+# ==========================================================
 
 def build_action_plan(action: str) -> List[str]:
-    """Create a simple step-by-step plan for the chosen action."""
+    """
+    Build a practical step-by-step action plan for the farmer.
+
+    These are the immediate actions the farmer should take
+    after receiving the recommendation.
+    """
+
+    action = normalize_action(action)
+
+    # ------------------------------------------------------
+
     if action == "SELL_NOW":
+
         return [
-            "Compare offers from local buyers or cooperatives.",
-            "Sell within the next few weeks if the market remains favourable.",
-            "Keep records of the sale and any transport costs.",
+
+            "Tembelea wanunuzi au masoko zaidi ya moja ili kulinganisha bei kabla ya kuuza.",
+
+            "Kama bei ni nzuri katika eneo lako, uza mahindi ndani ya kipindi kifupi badala ya kusubiri bila sababu.",
+
+            "Panga usafiri mapema ili kupunguza gharama za kusafirisha mazao.",
+
+            "Hifadhi kumbukumbu za kiasi ulichouza, bei uliyopata na gharama ulizotumia.",
+
+            "Endelea kufuatilia taarifa za soko kwa msimu ujao."
+
         ]
-    if action == "STORE_PARTIALLY":
+
+    # ------------------------------------------------------
+
+    elif action == "STORE_PARTIALLY":
+
         return [
-            "Set aside enough maize to meet immediate cash needs.",
-            "Store the remaining maize in a clean, dry place.",
-            "Review market conditions again after one month.",
+
+            "Uza kiasi cha mahindi kitakachokidhi mahitaji yako ya fedha kwa sasa.",
+
+            "Hifadhi mahindi yaliyobaki sehemu kavu, safi na isiyoingia unyevunyevu.",
+
+            "Kagua mahindi mara kwa mara ili kuhakikisha hayashambuliwi na wadudu.",
+
+            "Fuatilia bei za soko kila baada ya wiki chache ili kuona kama zimeanza kupanda.",
+
+            "Fanya uamuzi wa kuuza yaliyobaki endapo bei zitafikia kiwango kizuri."
+
         ]
+
+    # ------------------------------------------------------
+
+    elif action == "STORE":
+
+        return [
+
+            "Kausha mahindi vizuri kabla ya kuyaingiza ghalani.",
+
+            "Tumia mifuko ya PICS, silo ya chuma au ghala lenye usalama mzuri.",
+
+            "Kagua mahindi mara kwa mara ili kuzuia wadudu, panya na unyevunyevu.",
+
+            "Fuatilia mwenendo wa bei kila mwezi kabla ya kufanya uamuzi wa kuuza.",
+
+            "Uza mahindi pale bei itakapokuwa imeongezeka kwa kiwango kinachoweza kuongeza faida."
+
+        ]
+
+    # ------------------------------------------------------
+
     return [
-        "Dry the maize thoroughly before storage.",
-        "Store the maize using good storage practices and regular inspection.",
-        "Review market prices again before deciding whether to sell.",
+
+        "Endelea kufuatilia taarifa za soko.",
+
+        "Wasiliana na Afisa Ugani au Afisa Masoko ikiwa unahitaji ushauri zaidi."
+
     ]
+    
+    # ==========================================================
+# BUILD COMPLETE ADVISORY MESSAGE
+# ==========================================================
 
+def build_farmer_message(
+    decision: Dict[str, Any]
+) -> Dict[str, Any]:
+    """
+    Combine all farmer-facing messages into a single object.
 
-def build_farmer_message(decision: Dict[str, Any]) -> Dict[str, Any]:
-    """Return a structured advisory message object for the dashboard."""
-    action = decision.get("action", "SELL_NOW")
-    risk_level = str(decision.get("risk_level", "High"))
+    This function does not make decisions.
+
+    It only prepares information for the dashboard.
+    """
+
+    action = normalize_action(
+        decision.get("action")
+    )
+
+    risk = normalize_risk(
+        decision.get("risk_level")
+    )
+
+    recommendation = ACTION_LABELS.get(
+        action,
+        "PENDEKEZO HALIPATIKANI"
+    )
 
     return {
-        "summary": build_summary(decision),
-        "recommendation": action,
-        "reasoning": build_reasoning(decision),
-        "storage_advice": build_storage_advice(action),
-        "risk_message": build_risk_message(risk_level),
-        "action_plan": build_action_plan(action),
-    }
 
+        # Main recommendation
+        "recommendation": recommendation,
+
+        # Short summary
+        "summary": build_summary(
+            decision
+        ),
+
+        # Human explanation
+        "reasoning": build_reasoning(
+            decision
+        ),
+
+        # Storage / selling advice
+        "storage_advice": build_storage_advice(
+            action
+        ),
+
+        # Risk explanation
+        "risk_message": build_risk_message(
+            risk
+        ),
+
+        # Practical steps
+        "action_plan": build_action_plan(
+            action
+        ),
+
+        # Raw values (useful for dashboard styling)
+        "action": action,
+
+        "risk_level": risk,
+
+    }
+    
+    # ==========================================================
+# LEGACY COMPATIBILITY
+# ==========================================================
 
 def generate_farmer_plan(
     bags: int,
@@ -100,60 +434,158 @@ def generate_farmer_plan(
     transport_cost: float = 0.0,
 ) -> Dict[str, Any]:
     """
-    Preserve the legacy bag-allocation output for compatibility with older dashboard usage.
+    Compatibility wrapper for older dashboard versions.
 
-    This function remains a compatibility wrapper and does not perform decision logic.
+    This function no longer makes decisions.
+
+    It simply prepares simple economic summaries
+    expected by older interfaces.
     """
-    current_income = (current_price_100kg / 100) * 90 * bags
 
-    if advice.get("utabiri_wa_bei") and len(advice["utabiri_wa_bei"]) > 0:
-        next_price_90kg = advice["utabiri_wa_bei"][0]["per_gunia_90kg"]
+    current_income = (
+        current_price_100kg / 100
+    ) * 90 * bags
+
+    if (
+        advice.get("utabiri_wa_bei")
+        and len(advice["utabiri_wa_bei"]) > 0
+    ):
+
+        future_price = advice["utabiri_wa_bei"][0]["per_gunia_90kg"]
+
     else:
-        next_price_90kg = (current_price_100kg / 100) * 90
 
-    wait_income = next_price_90kg * bags
-    total_deductions = storage_cost + transport_cost
-    difference = wait_income - current_income - total_deductions
+        future_price = (
+            current_price_100kg / 100
+        ) * 90
 
-    diff_label = "Faida" if difference >= 0 else "Hasara"
-    is_profit = difference >= 0
+    future_income = future_price * bags
+
+    deductions = (
+        storage_cost
+        + transport_cost
+    )
+
+    difference = (
+        future_income
+        - current_income
+        - deductions
+    )
+
+    if difference >= 0:
+
+        diff_label = "Faida"
+
+        is_profit = True
+
+    else:
+
+        diff_label = "Hasara"
+
+        is_profit = False
+
+    # --------------------------------------------------
+
+    action = advice.get("action", "UZA SASA")
 
     if cash_need == "Ndiyo":
-        sell_now_bags = round(bags * 0.5, 1)
-        keep_bags = round(bags - sell_now_bags, 1)
-    else:
-        action = advice.get("action", "UZA SASA")
-        if action == "UZA SASA":
-            sell_now_bags = float(bags)
-            keep_bags = 0.0
-        elif action == "SUBIRI KIDOGO":
-            sell_now_bags = round(bags * 0.4, 1)
-            keep_bags = round(bags - sell_now_bags, 1)
-        else:
-            sell_now_bags = round(bags * 0.2, 1)
-            keep_bags = round(bags - sell_now_bags, 1)
 
-    if storage_type == "Mifuko maalum":
-        storage_advice = "Mahindi yanaweza kuhifadhiwa vizuri kwa kutumia mifuko maalum."
+        sell_now = round(bags * 0.5, 1)
+
+        keep = round(bags - sell_now, 1)
+
+    elif action == "UZA SASA":
+
+        sell_now = float(bags)
+
+        keep = 0
+
+    elif action == "SUBIRI KIDOGO":
+
+        sell_now = round(bags * 0.4, 1)
+
+        keep = round(bags - sell_now, 1)
+
+    else:
+
+        sell_now = round(bags * 0.2, 1)
+
+        keep = round(bags - sell_now, 1)
+
+    # --------------------------------------------------
+
+    if storage_type == "Mifuko ya PICS":
+
+        storage_note = (
+            "Mifuko ya PICS hupunguza uharibifu wa wadudu "
+            "na inaweza kusaidia kuhifadhi ubora wa mahindi."
+        )
+
+    elif storage_type == "Silo ya chuma":
+
+        storage_note = (
+            "Silo ya chuma ni mojawapo ya njia bora zaidi "
+            "za kuhifadhi mahindi kwa muda mrefu."
+        )
+
     elif storage_type == "Ghala":
-        storage_advice = "Ghala linaweza kuwa chaguo bora ikiwa linadumishwa vizuri."
-    else:
-        storage_advice = "Kama utatumia magunia ya kawaida, hakikisha mahali pa kuhifadhi ni kavu."
 
-    if advice.get("action") != "UZA SASA":
-        market_note = "Bei inatoa nafasi nzuri kwa subira. Endelea kufuatilia soko."
+        storage_note = (
+            "Hakikisha ghala ni kavu, safi na halivuji "
+            "ili kupunguza hasara."
+        )
+
     else:
-        market_note = "Ikiwa unataka kuepuka hatari, kuuza sasa ni njia salama."
+
+        storage_note = (
+            "Hifadhi mahindi sehemu kavu na salama "
+            "ili kupunguza uharibifu."
+        )
+
+    # --------------------------------------------------
+
+    if action == "UZA SASA":
+
+        market_note = (
+            "Kwa hali ya sasa ya soko, kuuza mapema "
+            "kunaonekana kuwa chaguo salama zaidi."
+        )
+
+    elif action == "HIFADHI":
+
+        market_note = (
+            "Mfumo unaonyesha kuwa kusubiri kunaweza "
+            "kuongeza thamani ya mauzo ikiwa mahindi "
+            "yatahifadhiwa vizuri."
+        )
+
+    else:
+
+        market_note = (
+            "Kuuza sehemu na kuhifadhi sehemu ni njia "
+            "ya kupunguza hatari huku ukisubiri soko."
+        )
 
     return {
+
         "current_income": current_income,
-        "wait_income": wait_income,
+
+        "wait_income": future_income,
+
         "difference": difference,
+
         "diff_label": diff_label,
+
         "is_profit": is_profit,
-        "sell_now_bags": sell_now_bags,
-        "keep_bags": keep_bags,
-        "storage_advice": storage_advice,
+
+        "sell_now_bags": sell_now,
+
+        "keep_bags": keep,
+
+        "storage_advice": storage_note,
+
         "market_note": market_note,
-        "total_deductions": total_deductions,
+
+        "total_deductions": deductions,
+
     }
