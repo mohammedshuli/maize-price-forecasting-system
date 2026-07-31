@@ -385,7 +385,7 @@ p{
 
     max-width:760px;
 
-    color:rgba(255,255,255,.94);
+    color:rgba(14, 10, 10, 0.94);
 
     line-height:1.9;
 
@@ -399,13 +399,13 @@ p{
 
     display:inline-block;
 
-    background:rgba(255,255,255,.14);
+    background:rgba(0, 0, 0, 0.14);
 
     padding:.8rem 1rem;
 
     border-radius:12px;
 
-    color:white;
+    color:rgb(0, 0, 0);
 
 }
 

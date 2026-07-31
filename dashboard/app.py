@@ -318,7 +318,7 @@ market_analysis = analyze_forecast(
 
 with st.sidebar:
 
-    st.markdown("## 🌽 Mfumo wa Ushauri")
+    st.markdown("## 🌽 Mfumo wa DSS")
 
     st.info(
         """
@@ -326,9 +326,11 @@ Mfumo huu unatumia:
 
 • Bei halisi za soko
 
+• Utabiri wa SARIMA
+
 • Uchambuzi wa kiuchumi
 
-• Tathmini ya uhifadhi
+• Tathmini ya hatari
 
 ili kukusaidia kufanya
 uamuzi bora wa kuuza
@@ -445,7 +447,7 @@ with c2:
             region_data["price_per_kg"]
         ),
 
-        "Kwa bei za rejareja"
+        "bei kwa rejareja"
 
     )
 
@@ -484,7 +486,7 @@ st.markdown("## 📈 Bei Zinazotarajiwa")
 st.write(
     """
 Hapa chini unaweza kuona makadirio ya
-bei pamoja na mabadiliko yanayotarajiwa kwa miezi ijayo.
+bei pamoja na mabadiliko yanayotarajiwa kwa miezi inayofuata.
 """
 )
 
@@ -598,8 +600,8 @@ with st.form("farmer_information"):
         selling_plan = st.radio(
             "Unapanga kufanya nini?",
             [
-                "Nataka kuuza yote",
-                "Nataka kuuza sehemu",
+                "Nataka kuyauza yote",
+                "Nataka kuuza baadhi ya mahindi tu",
                 "Bado sijafanya uamuzi",
             ],
             index=2,
@@ -639,9 +641,9 @@ with st.form("farmer_information"):
         experience = st.selectbox(
             "Uzoefu wako wa kuhifadhi mahindi",
             [
-                "Mdogo",
-                "Wastani",
-                "Mkubwa",
+                "Mdogo, sihifadhi mara kwa mara",
+                "Wastani, huwa nahifadh maramoja moja",
+                "Mkubwa, huwa nahifadhi kwa muda mrefu",
             ],
         )
 
@@ -656,7 +658,7 @@ unaokufaa zaidi.
     )
 
     submitted = st.form_submit_button(
-        "🔍 Changanua na Nipatie Ushauri"
+        "🔍 Changanua na Kupata Ushauri"
     )
     
 # ==========================================================
@@ -669,7 +671,7 @@ if submitted:
 
     status = st.empty()
 
-    status.info("🔍 Mfumo unachambua taarifa ulizoingiza...")
+    status.info("🔍  Tunachambua taarifa ulizoingiza...")
 
     import time
 
@@ -993,7 +995,7 @@ sehemu nyingine kusubiri mabadiliko ya soko.
 
       render_metric_card(
 
-        "Ukisubiri miezi ijayo",
+        "Ukisubiri",
 
         format_currency(future_value),
 
@@ -1034,7 +1036,7 @@ sehemu nyingine kusubiri mabadiliko ya soko.
 
 ("📦 Hifadhi Yote", "Unaweza kupata faida zaidi, lakini pia unaongeza hatari ya hasara."),
 
-("⚖️ Uza Nusu", "Njia ya kati inayopunguza hatari na kukupa fedha za matumizi.")
+("⚖️ Uza kiasi, au nusu", "Njia ya kati inayopunguza hatari na kukupa fedha za matumizi.")
 
 ]
 
@@ -1113,7 +1115,8 @@ sehemu nyingine kusubiri mabadiliko ya soko.
 </div>
 """, unsafe_allow_html=True)
         
-        
+    
+
 # ==========================================================
 # KUMBUKA
 # ==========================================================
@@ -1125,8 +1128,6 @@ sehemu nyingine kusubiri mabadiliko ya soko.
 Mfumo huu unatoa ushauri kwa kutumia:
 
 • Bei halisi za mahindi zilizokusanywa sokoni.
-
-• Mfano wa utabiri wa SARIMA.
 
 • Uchambuzi wa faida, gharama na hatari.
 
@@ -1162,10 +1163,6 @@ kufanya maamuzi bora kuhusu kuuza au kuhifadhi mazao yao.
 <hr>
 
 <p>
-
-Bachelor of Data Science Final Year Project
-
-Eastern Africa Statistical Training Centre (EASTC)
 
 2026
 
